@@ -1,5 +1,7 @@
 package ccfmt
 
+// ci trigger
+
 import (
 	"bytes"
 	"encoding/json"
