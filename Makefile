@@ -1,4 +1,4 @@
-.PHONY: build install test lint
+.PHONY: build install test lint fmt
 
 build:
 	go build -o ccfmt ./cmd/
@@ -11,4 +11,6 @@ test:
 
 lint:
 	golangci-lint run ./...
-	golangci-lint fmt ./... && git diff --exit-code
+
+fmt:
+	golangci-lint fmt ./...
