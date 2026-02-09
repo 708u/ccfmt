@@ -1,4 +1,4 @@
-.PHONY: build install test
+.PHONY: build install test lint
 
 build:
 	go build -o ccfmt ./cmd/
@@ -8,3 +8,7 @@ install:
 
 test:
 	go test -tags integration ./...
+
+lint:
+	golangci-lint run ./...
+	golangci-lint fmt ./... && git diff --exit-code
