@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+project_name: ccfmt
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/
+    binary: ccfmt
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+homebrew_casks:
+  - repository:
+      owner: 708u
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/708u/ccfmt"
+    description: "CLI tool that formats ~/.claude.json"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ccfmt"]
+          end
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+changelog:
+  sort: asc
+  groups:
+    - title: "Breaking Changes"
+      regexp: '^.*!:.+$'
+      order: 0
+    - title: "New Features"
+      regexp: '^feat(\(.+\))?:.+$'
+      order: 1
+    - title: "Bug Fixes"
+      regexp: '^fix(\(.+\))?:.+$'
+      order: 2
+    - title: "Performance"
+      regexp: '^perf(\(.+\))?:.+$'
+      order: 3
+    - title: "Documentation"
+      regexp: '^docs(\(.+\))?:.+$'
+      order: 4
+    - title: "Other Changes"
+      order: 999
+  filters:
+    exclude:
+      - "^Merge pull request"
+      - "^Merge branch"
+
+release:
+  name_template: "v{{.Version}}"
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/708u/ccfmt/compare/{{.PreviousTag}}...{{.Tag}}
