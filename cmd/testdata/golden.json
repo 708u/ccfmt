@@ -1,0 +1,202 @@
+{
+  "anonymousId": "abc-123-def-456",
+  "autoCompactEnabled": false,
+  "autoConnectIde": true,
+  "autoUpdates": true,
+  "autoUpdatesProtectedForNative": true,
+  "cachedChromeExtensionInstalled": true,
+  "cachedDynamicConfigs": {
+    "config_a": {
+      "value": 1
+    },
+    "config_b": {
+      "value": 2
+    }
+  },
+  "cachedGrowthBookFeatures": {
+    "feature_a": false,
+    "feature_m": true,
+    "feature_z": true
+  },
+  "cachedStatsigGates": {
+    "alpha_gate": false,
+    "mid_gate": true,
+    "zeta_gate": true
+  },
+  "changelogLastFetched": 1770632087950,
+  "claudeCodeFirstTokenDate": "2024-01-15T10:30:00.000Z",
+  "claudeInChromeDefaultEnabled": true,
+  "clientDataCache": {
+    "data": {
+      "nested": "value"
+    },
+    "timestamp": 1770000000
+  },
+  "fallbackAvailableWarningThreshold": 0.5,
+  "feedbackSurveyState": {
+    "lastShownTime": 1770000000
+  },
+  "firstStartTime": "2024-01-15T10:30:00.000Z",
+  "githubRepoPaths": {
+    "org/repo-alpha": [
+      "/Users/test/project-a"
+    ],
+    "org/repo-beta": [
+      "/Users/test/project-a",
+      "/Users/test/project-b"
+    ]
+  },
+  "groveConfigCache": {
+    "uuid-xxx": {
+      "config": true
+    }
+  },
+  "hasAvailableSubscription": false,
+  "hasCompletedClaudeInChromeOnboarding": true,
+  "hasCompletedOnboarding": true,
+  "hasIdeAutoConnectDialogBeenShown": true,
+  "hasOpusPlanDefault": false,
+  "hasSeenStashHint": true,
+  "hasSeenTasksHint": true,
+  "hasShownOpus45Notice": {
+    "shown": true
+  },
+  "hasShownOpus46Notice": {
+    "shown": true
+  },
+  "hasShownOpusPlanWelcome": {
+    "shown": true
+  },
+  "hasUsedBackslashReturn": true,
+  "hasVisitedPasses": false,
+  "installMethod": "npm",
+  "isQualifiedForDataSharing": false,
+  "iterm2BackupPath": "/Users/test/.iterm2/backup",
+  "iterm2SetupInProgress": false,
+  "lastOnboardingVersion": "1.0.27",
+  "lastPlanModeUse": 1770649077809,
+  "lastReleaseNotesSeen": "1.0.27",
+  "lspRecommendationIgnoredCount": 1,
+  "mcpServers": {
+    "server-a": {
+      "url": "http://localhost:8080"
+    },
+    "server-b": {
+      "url": "http://localhost:8081"
+    }
+  },
+  "numStartups": 2506,
+  "oauthAccount": {
+    "accountCreatedAt": "2024-01-15",
+    "accountUuid": "uuid-xxx",
+    "billingType": "pro",
+    "displayName": "Test User",
+    "emailAddress": "test@example.com",
+    "hasExtraUsageEnabled": false,
+    "organizationName": "TestOrg",
+    "organizationRole": "member",
+    "organizationUuid": "org-uuid-xxx",
+    "subscriptionCreatedAt": "2024-01-15",
+    "workspaceRole": "admin"
+  },
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
+  "opus45MigrationComplete": true,
+  "opus46FeedSeenCount": 66,
+  "opusProMigrationComplete": true,
+  "passesEligibilityCache": {
+    "uuid-xxx": {
+      "eligible": true
+    }
+  },
+  "passesLastSeenRemaining": 3,
+  "passesUpsellSeenCount": 4,
+  "penguinModeOrgEnabled": true,
+  "projects": {
+    "/Users/test/project-a": {
+      "allowedTools": [
+        "Bash",
+        "Read"
+      ],
+      "disabledMcpjsonServers": [],
+      "enabledMcpjsonServers": [
+        "server-a"
+      ],
+      "hasTrustDialogAccepted": true,
+      "lastCost": 0.08,
+      "lastDuration": 60000,
+      "lastModelUsage": {
+        "sonnet": {
+          "input": 2000,
+          "output": 1000
+        }
+      },
+      "lastSessionId": "session-yyy",
+      "lastTotalInputTokens": 2000,
+      "lastTotalOutputTokens": 1000,
+      "mcpContextUris": [],
+      "projectOnboardingSeenCount": 1
+    },
+    "/Users/test/project-b": {
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Write"
+      ],
+      "disabledMcpjsonServers": [
+        "disabled-server"
+      ],
+      "enabledMcpjsonServers": [
+        "server-a",
+        "server-b"
+      ],
+      "hasTrustDialogAccepted": true,
+      "lastCost": 0.15,
+      "lastDuration": 120000,
+      "lastModelUsage": {
+        "opus": {
+          "input": 5000,
+          "output": 3000
+        }
+      },
+      "lastSessionId": "session-xxx",
+      "lastTotalInputTokens": 5000,
+      "lastTotalOutputTokens": 3000,
+      "mcpContextUris": [],
+      "projectOnboardingSeenCount": 2
+    }
+  },
+  "promptQueueUseCount": 909,
+  "recommendedSubscription": "",
+  "s1mAccessCache": {
+    "uuid-xxx": {
+      "hasAccess": true
+    }
+  },
+  "shiftEnterKeyBindingInstalled": true,
+  "showExpandedTodos": true,
+  "skillUsage": {
+    "commit": {
+      "lastUsedAt": 1770000000,
+      "usageCount": 50
+    },
+    "export-session": {
+      "lastUsedAt": 1770000000,
+      "usageCount": 5
+    },
+    "review-pr": {
+      "lastUsedAt": 1770000000,
+      "usageCount": 20
+    }
+  },
+  "sonnet45MigrationComplete": true,
+  "sonnet45MigrationTimestamp": 1759308249991,
+  "subscriptionNoticeCount": 0,
+  "theme": "dark-mode",
+  "thinkingMigrationComplete": true,
+  "tipsHistory": {
+    "tip-a": false,
+    "tip-b": true
+  },
+  "userID": "user-abc-123"
+}

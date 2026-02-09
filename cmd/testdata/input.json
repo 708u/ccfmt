@@ -1,0 +1,152 @@
+{
+  "numStartups": 2506,
+  "installMethod": "npm",
+  "autoUpdates": true,
+  "theme": "dark-mode",
+  "autoCompactEnabled": false,
+  "hasSeenTasksHint": true,
+  "tipsHistory": {
+    "tip-b": true,
+    "tip-a": false
+  },
+  "promptQueueUseCount": 909,
+  "showExpandedTodos": true,
+  "autoConnectIde": true,
+  "cachedStatsigGates": {
+    "zeta_gate": true,
+    "alpha_gate": false,
+    "mid_gate": true
+  },
+  "cachedDynamicConfigs": {
+    "config_b": {"value": 2},
+    "config_a": {"value": 1}
+  },
+  "cachedGrowthBookFeatures": {
+    "feature_z": true,
+    "feature_a": false,
+    "feature_m": true
+  },
+  "anonymousId": "abc-123-def-456",
+  "autoUpdatesProtectedForNative": true,
+  "cachedChromeExtensionInstalled": true,
+  "changelogLastFetched": 1770632087950,
+  "claudeCodeFirstTokenDate": "2024-01-15T10:30:00.000Z",
+  "claudeInChromeDefaultEnabled": true,
+  "clientDataCache": {
+    "data": {"nested": "value"},
+    "timestamp": 1770000000
+  },
+  "fallbackAvailableWarningThreshold": 0.5,
+  "feedbackSurveyState": {
+    "lastShownTime": 1770000000
+  },
+  "firstStartTime": "2024-01-15T10:30:00.000Z",
+  "githubRepoPaths": {
+    "org/repo-beta": ["/Users/test/project-b", "/Users/test/project-a"],
+    "org/repo-alpha": ["/Users/test/project-a"]
+  },
+  "groveConfigCache": {
+    "uuid-xxx": {"config": true}
+  },
+  "hasAvailableSubscription": false,
+  "hasCompletedClaudeInChromeOnboarding": true,
+  "hasCompletedOnboarding": true,
+  "hasIdeAutoConnectDialogBeenShown": true,
+  "hasOpusPlanDefault": false,
+  "hasSeenStashHint": true,
+  "hasShownOpus45Notice": {
+    "shown": true
+  },
+  "hasShownOpus46Notice": {
+    "shown": true
+  },
+  "hasShownOpusPlanWelcome": {
+    "shown": true
+  },
+  "hasUsedBackslashReturn": true,
+  "hasVisitedPasses": false,
+  "isQualifiedForDataSharing": false,
+  "iterm2BackupPath": "/Users/test/.iterm2/backup",
+  "iterm2SetupInProgress": false,
+  "lastOnboardingVersion": "1.0.27",
+  "lastPlanModeUse": 1770649077809,
+  "lastReleaseNotesSeen": "1.0.27",
+  "lspRecommendationIgnoredCount": 1,
+  "mcpServers": {
+    "server-b": {"url": "http://localhost:8081"},
+    "server-a": {"url": "http://localhost:8080"}
+  },
+  "oauthAccount": {
+    "workspaceRole": "admin",
+    "accountCreatedAt": "2024-01-15",
+    "accountUuid": "uuid-xxx",
+    "billingType": "pro",
+    "displayName": "Test User",
+    "emailAddress": "test@example.com",
+    "hasExtraUsageEnabled": false,
+    "organizationName": "TestOrg",
+    "organizationRole": "member",
+    "organizationUuid": "org-uuid-xxx",
+    "subscriptionCreatedAt": "2024-01-15"
+  },
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
+  "opus45MigrationComplete": true,
+  "opus46FeedSeenCount": 66,
+  "opusProMigrationComplete": true,
+  "passesEligibilityCache": {
+    "uuid-xxx": {"eligible": true}
+  },
+  "passesLastSeenRemaining": 3,
+  "passesUpsellSeenCount": 4,
+  "penguinModeOrgEnabled": true,
+  "projects": {
+    "/Users/test/project-b": {
+      "allowedTools": ["Write", "Bash", "Read"],
+      "hasTrustDialogAccepted": true,
+      "lastSessionId": "session-xxx",
+      "lastCost": 0.15,
+      "lastDuration": 120000,
+      "lastTotalInputTokens": 5000,
+      "lastTotalOutputTokens": 3000,
+      "lastModelUsage": {
+        "opus": {"input": 5000, "output": 3000}
+      },
+      "mcpContextUris": [],
+      "disabledMcpjsonServers": ["disabled-server"],
+      "enabledMcpjsonServers": ["server-b", "server-a"],
+      "projectOnboardingSeenCount": 2
+    },
+    "/Users/test/project-a": {
+      "allowedTools": ["Read", "Bash"],
+      "hasTrustDialogAccepted": true,
+      "lastSessionId": "session-yyy",
+      "lastCost": 0.08,
+      "lastDuration": 60000,
+      "lastTotalInputTokens": 2000,
+      "lastTotalOutputTokens": 1000,
+      "lastModelUsage": {
+        "sonnet": {"input": 2000, "output": 1000}
+      },
+      "mcpContextUris": [],
+      "disabledMcpjsonServers": [],
+      "enabledMcpjsonServers": ["server-a"],
+      "projectOnboardingSeenCount": 1
+    }
+  },
+  "recommendedSubscription": "",
+  "s1mAccessCache": {
+    "uuid-xxx": {"hasAccess": true}
+  },
+  "shiftEnterKeyBindingInstalled": true,
+  "skillUsage": {
+    "commit": {"lastUsedAt": 1770000000, "usageCount": 50},
+    "review-pr": {"lastUsedAt": 1770000000, "usageCount": 20},
+    "export-session": {"lastUsedAt": 1770000000, "usageCount": 5}
+  },
+  "sonnet45MigrationComplete": true,
+  "sonnet45MigrationTimestamp": 1759308249991,
+  "subscriptionNoticeCount": 0,
+  "thinkingMigrationComplete": true,
+  "userID": "user-abc-123"
+}

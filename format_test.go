@@ -1,0 +1,230 @@
+package ccfmt
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+type pathSet map[string]bool
+
+func (s pathSet) Exists(p string) bool { return s[p] }
+
+func checkerFor(paths ...string) pathSet {
+	s := make(pathSet, len(paths))
+	for _, p := range paths {
+		s[p] = true
+	}
+	return s
+}
+
+type alwaysTrue struct{}
+
+func (alwaysTrue) Exists(string) bool { return true }
+
+type alwaysFalse struct{}
+
+func (alwaysFalse) Exists(string) bool { return false }
+
+func TestFormat(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		checker PathChecker
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "recursive key sorting",
+			input:   `{"z": 1, "a": {"c": 2, "b": 1}}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"a\": {\n    \"b\": 1,\n    \"c\": 2\n  },\n  \"githubRepoPaths\": {},\n  \"projects\": {},\n  \"z\": 1\n}\n",
+		},
+		{
+			name:    "remove non-existent project paths",
+			input:   `{"projects": {"/exists": {}, "/gone": {}}}`,
+			checker: checkerFor("/exists"),
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": {\n    \"/exists\": {}\n  }\n}\n",
+		},
+		{
+			name:    "remove non-existent github repo paths",
+			input:   `{"githubRepoPaths": {"org/repo": ["/exists", "/gone"]}}`,
+			checker: checkerFor("/exists"),
+			want:    "{\n  \"githubRepoPaths\": {\n    \"org/repo\": [\n      \"/exists\"\n    ]\n  },\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "remove empty repo keys",
+			input:   `{"githubRepoPaths": {"org/repo": ["/gone"]}}`,
+			checker: alwaysFalse{},
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "sort string arrays",
+			input:   `{"arr": ["c", "a", "b"]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    \"a\",\n    \"b\",\n    \"c\"\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "sort json.Number arrays numerically",
+			input:   `{"arr": [9, 10, 2]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    2,\n    9,\n    10\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "sort bool arrays false before true",
+			input:   `{"arr": [true, false, true]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    false,\n    true,\n    true\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "skip sorting object arrays",
+			input:   `{"arr": [{"b": 1}, {"a": 2}]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    {\n      \"b\": 1\n    },\n    {\n      \"a\": 2\n    }\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "skip sorting nested arrays",
+			input:   `{"arr": [[3, 1], [2, 4]]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    [\n      1,\n      3\n    ],\n    [\n      2,\n      4\n    ]\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "skip sorting mixed type arrays",
+			input:   `{"arr": ["a", 1, true]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"arr\": [\n    \"a\",\n    1,\n    true\n  ],\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "preserve integer representation",
+			input:   `{"num": 42}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"num\": 42,\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "no HTML escaping",
+			input:   `{"url": "a&b<c>d"}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": {},\n  \"url\": \"a&b<c>d\"\n}\n",
+		},
+		{
+			name:    "trailing newline",
+			input:   `{"a": 1}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"a\": 1,\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "invalid JSON",
+			input:   `{broken`,
+			checker: alwaysTrue{},
+			wantErr: true,
+		},
+		{
+			name:    "empty file",
+			input:   ``,
+			checker: alwaysTrue{},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace only",
+			input:   `   `,
+			checker: alwaysTrue{},
+			wantErr: true,
+		},
+		{
+			name:    "projects key missing sets empty object",
+			input:   `{"foo": 1}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"foo\": 1,\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "projects is array skips cleaning",
+			input:   `{"projects": [1, 2]}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": [\n    1,\n    2\n  ]\n}\n",
+		},
+		{
+			name:    "githubRepoPaths value is string skips cleaning",
+			input:   `{"githubRepoPaths": {"repo": "not-array"}}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"githubRepoPaths\": {\n    \"repo\": \"not-array\"\n  },\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "empty object input",
+			input:   `{}`,
+			checker: alwaysTrue{},
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": {}\n}\n",
+		},
+		{
+			name:    "paths with special characters",
+			input:   `{"projects": {"/path with spaces/project": {}, "/path/日本語": {}}}`,
+			checker: checkerFor("/path with spaces/project", "/path/日本語"),
+			want:    "{\n  \"githubRepoPaths\": {},\n  \"projects\": {\n    \"/path with spaces/project\": {},\n    \"/path/日本語\": {}\n  }\n}\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &Formatter{PathChecker: tt.checker}
+			result, err := f.Format([]byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := string(result.Data)
+			if got != tt.want {
+				t.Errorf("mismatch:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatStats(t *testing.T) {
+	input := `{"projects": {"/exists": {}, "/gone": {}}, "githubRepoPaths": {"r": ["/exists", "/gone"]}}`
+	f := &Formatter{PathChecker: checkerFor("/exists")}
+	result, err := f.Format([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	s := result.Stats
+	if s.ProjectsRemoved() != 1 {
+		t.Errorf("ProjectsRemoved = %d, want 1", s.ProjectsRemoved())
+	}
+	if s.RepoPathsRemoved() != 1 {
+		t.Errorf("RepoPathsRemoved = %d, want 1", s.RepoPathsRemoved())
+	}
+}
+
+func TestFormatComma(t *testing.T) {
+	tests := []struct {
+		n    int64
+		want string
+	}{
+		{0, "0"},
+		{999, "999"},
+		{1000, "1,000"},
+		{52049, "52,049"},
+		{1234567890, "1,234,567,890"},
+	}
+	for _, tt := range tests {
+		got := formatComma(tt.n)
+		if got != tt.want {
+			t.Errorf("formatComma(%d) = %q, want %q", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestFormatOutputValidity(t *testing.T) {
+	input := `{"key": "value", "num": 42, "arr": [3, 1, 2]}`
+	f := &Formatter{PathChecker: alwaysTrue{}}
+	result, err := f.Format([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !json.Valid(result.Data) {
+		t.Error("output is not valid JSON")
+	}
+}
