@@ -263,28 +263,6 @@ func containsKey(jsonStr, key string) bool {
 		bytes.Contains([]byte(jsonStr), []byte(`"`+key+`"`))
 }
 
-func TestFormatResultChanged(t *testing.T) {
-	t.Run("different content", func(t *testing.T) {
-		r := &FormatResult{Original: []byte(`{"b":1,"a":2}`), Data: []byte(`{"a":2,"b":1}`)}
-		if !r.Changed() {
-			t.Error("expected Changed() to return true")
-		}
-	})
-	t.Run("same content", func(t *testing.T) {
-		data := []byte(`{"a":1}`)
-		r := &FormatResult{Original: data, Data: data}
-		if r.Changed() {
-			t.Error("expected Changed() to return false")
-		}
-	})
-	t.Run("same size different content", func(t *testing.T) {
-		r := &FormatResult{Original: []byte(`{"b":1}`), Data: []byte(`{"a":1}`)}
-		if !r.Changed() {
-			t.Error("expected Changed() to return true for same-size different content")
-		}
-	})
-}
-
 func TestFormatStats(t *testing.T) {
 	input := `{"projects": {"/exists": {}, "/gone": {}}, "githubRepoPaths": {"r": ["/exists", "/gone"]}}`
 	f := &Formatter{PathChecker: checkerFor("/exists")}

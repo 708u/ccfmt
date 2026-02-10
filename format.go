@@ -9,9 +9,8 @@ import (
 )
 
 type FormatResult struct {
-	Data     []byte
-	Original []byte
-	Stats    *Stats
+	Data  []byte
+	Stats *Stats
 }
 
 type Stats struct {
@@ -30,10 +29,6 @@ func (s *Stats) ProjectsRemoved() int {
 
 func (s *Stats) RepoPathsRemoved() int {
 	return s.RepoBefore - s.RepoAfter
-}
-
-func (r *FormatResult) Changed() bool {
-	return !bytes.Equal(r.Original, r.Data)
 }
 
 func (s *Stats) Summary(backupPath string) string {
@@ -79,7 +74,7 @@ func FormatJSON(data []byte) (*FormatResult, error) {
 	}
 	stats.SizeAfter = len(out)
 
-	return &FormatResult{Data: out, Original: data, Stats: stats}, nil
+	return &FormatResult{Data: out, Stats: stats}, nil
 }
 
 func (f *Formatter) Format(data []byte) (*FormatResult, error) {
@@ -100,7 +95,7 @@ func (f *Formatter) Format(data []byte) (*FormatResult, error) {
 	}
 	stats.SizeAfter = len(out)
 
-	return &FormatResult{Data: out, Original: data, Stats: stats}, nil
+	return &FormatResult{Data: out, Stats: stats}, nil
 }
 
 func decodeJSON(data []byte) (map[string]any, error) {

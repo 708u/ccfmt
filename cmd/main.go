@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -71,6 +72,7 @@ func isClaudeJSON(path string) bool {
 
 type fileResult struct {
 	path       string
+	original   []byte
 	result     *ccfmt.FormatResult
 	backupPath string
 }
@@ -131,6 +133,7 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, er
 
 	return &fileResult{
 		path:       tf.path,
+		original:   data,
 		result:     result,
 		backupPath: backupPath,
 	}, nil
@@ -141,7 +144,7 @@ func printResult(w io.Writer, r *fileResult, single bool) {
 		fmt.Fprint(w, r.result.Stats.Summary(r.backupPath))
 		return
 	}
-	if !r.result.Changed() {
+	if bytes.Equal(r.original, r.result.Data) {
 		fmt.Fprintf(w, "%s:\n  (no changes)\n\n", r.path)
 		return
 	}
