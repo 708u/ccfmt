@@ -219,13 +219,11 @@ func (s *SettingsJSONFormatter) Format(ctx context.Context, data []byte) (*Forma
 
 	stats := &SettingsJSONFormatterStats{SizeBefore: len(data)}
 
-	if s.PathChecker != nil {
-		pr := prunePermissions(ctx, obj, s.PathChecker)
-		stats.PrunedAllow = pr.PrunedAllow
-		stats.PrunedDeny = pr.PrunedDeny
-		stats.PrunedAsk = pr.PrunedAsk
-		stats.RelativeWarns = pr.RelativeWarns
-	}
+	pr := prunePermissions(ctx, obj, s.PathChecker)
+	stats.PrunedAllow = pr.PrunedAllow
+	stats.PrunedDeny = pr.PrunedDeny
+	stats.PrunedAsk = pr.PrunedAsk
+	stats.RelativeWarns = pr.RelativeWarns
 
 	sortArraysRecursive(obj)
 
