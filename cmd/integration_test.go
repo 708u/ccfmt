@@ -20,12 +20,13 @@ func (alwaysTrue) Exists(string) bool { return true }
 var update = flag.Bool("update", false, "update golden files")
 
 func TestGolden(t *testing.T) {
+	t.Parallel()
 	input, err := os.ReadFile("testdata/input.json")
 	if err != nil {
 		t.Fatalf("reading input: %v", err)
 	}
 
-	f := &ccfmt.Formatter{PathChecker: alwaysTrue{}}
+	f := ccfmt.NewClaudeJSONFormatter(alwaysTrue{})
 	result, err := f.Format(input)
 	if err != nil {
 		t.Fatalf("format: %v", err)
@@ -51,12 +52,13 @@ func TestGolden(t *testing.T) {
 }
 
 func TestSettingsGolden(t *testing.T) {
+	t.Parallel()
 	input, err := os.ReadFile("testdata/settings_input.json")
 	if err != nil {
 		t.Fatalf("reading input: %v", err)
 	}
 
-	result, err := ccfmt.FormatJSON(input)
+	result, err := ccfmt.NewSettingsJSONFormatter().Format(input)
 	if err != nil {
 		t.Fatalf("format: %v", err)
 	}
@@ -81,6 +83,7 @@ func TestSettingsGolden(t *testing.T) {
 }
 
 func TestIntegrationPathCleaning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	existingProject := filepath.Join(dir, "project-a")
@@ -106,7 +109,7 @@ func TestIntegrationPathCleaning(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, checker: osPathChecker{}, w: &buf}
+	cli := &CLI{Target: file, checker: &osPathChecker{}, w: &buf}
 	if err := cli.Run(dir); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -142,10 +145,12 @@ func TestIntegrationPathCleaning(t *testing.T) {
 }
 
 func TestRunSingleTarget(t *testing.T) {
+	t.Parallel()
 	input := `{"z": 1, "a": 2}`
 	wantJSON := "{\n  \"a\": 2,\n  \"githubRepoPaths\": {},\n  \"projects\": {},\n  \"z\": 1\n}\n"
 
 	t.Run("normal flow writes file without backup", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
@@ -173,6 +178,7 @@ func TestRunSingleTarget(t *testing.T) {
 	})
 
 	t.Run("dry-run does not modify file", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
@@ -200,6 +206,7 @@ func TestRunSingleTarget(t *testing.T) {
 	})
 
 	t.Run("backup flag creates backup", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
@@ -231,6 +238,7 @@ func TestRunSingleTarget(t *testing.T) {
 	})
 
 	t.Run("preserves file permissions", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o600)
@@ -248,6 +256,7 @@ func TestRunSingleTarget(t *testing.T) {
 	})
 
 	t.Run("single target file not found error", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
 		cli := &CLI{Target: "/nonexistent/path/test.json", checker: alwaysTrue{}, w: &buf}
 		err := cli.Run("/tmp")
@@ -261,7 +270,10 @@ func TestRunSingleTarget(t *testing.T) {
 }
 
 func TestRunMultipleTargets(t *testing.T) {
+	t.Parallel()
+
 	t.Run("formats multiple files", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		claudeJSON := filepath.Join(dir, ".claude.json")
@@ -273,12 +285,10 @@ func TestRunMultipleTargets(t *testing.T) {
 		os.WriteFile(settingsJSON, []byte(`{"permissions":{"allow":["Write","Read"]}}`), 0o644)
 
 		var buf bytes.Buffer
-		// Use Run with home=dir so defaultTargets resolves to our temp dir
 		cli := &CLI{checker: alwaysTrue{}, w: &buf}
-		// Manually call with crafted targets since defaultTargets uses cwd
 		targets := []targetFile{
-			{path: claudeJSON, needsCleaning: true},
-			{path: settingsJSON, needsCleaning: false},
+			{path: claudeJSON, formatter: ccfmt.NewClaudeJSONFormatter(alwaysTrue{})},
+			{path: settingsJSON, formatter: ccfmt.NewSettingsJSONFormatter()},
 		}
 		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -304,6 +314,7 @@ func TestRunMultipleTargets(t *testing.T) {
 	})
 
 	t.Run("skips non-existent files in multi mode", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		claudeJSON := filepath.Join(dir, ".claude.json")
@@ -314,8 +325,8 @@ func TestRunMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: claudeJSON, needsCleaning: true},
-			{path: missingFile, needsCleaning: false},
+			{path: claudeJSON, formatter: ccfmt.NewClaudeJSONFormatter(alwaysTrue{})},
+			{path: missingFile, formatter: ccfmt.NewSettingsJSONFormatter()},
 		}
 		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -328,6 +339,7 @@ func TestRunMultipleTargets(t *testing.T) {
 	})
 
 	t.Run("no changes shown for already formatted file", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
@@ -337,8 +349,8 @@ func TestRunMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: settingsJSON, needsCleaning: false},
-			{path: filepath.Join(dir, "missing.json"), needsCleaning: false},
+			{path: settingsJSON, formatter: ccfmt.NewSettingsJSONFormatter()},
+			{path: filepath.Join(dir, "missing.json"), formatter: ccfmt.NewSettingsJSONFormatter()},
 		}
 		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -350,7 +362,8 @@ func TestRunMultipleTargets(t *testing.T) {
 		}
 	})
 
-	t.Run("settings file uses FormatJSON without path cleaning", func(t *testing.T) {
+	t.Run("settings file uses SettingsJSONFormatter without path cleaning", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		input := `{"permissions":{"allow":["Write","Read"]},"env":{"Z":"z","A":"a"}}`
@@ -367,10 +380,10 @@ func TestRunMultipleTargets(t *testing.T) {
 		got := string(data)
 
 		if strings.Contains(got, `"projects"`) {
-			t.Error("FormatJSON should not add projects key")
+			t.Error("SettingsJSONFormatter should not add projects key")
 		}
 		if strings.Contains(got, `"githubRepoPaths"`) {
-			t.Error("FormatJSON should not add githubRepoPaths key")
+			t.Error("SettingsJSONFormatter should not add githubRepoPaths key")
 		}
 
 		if !strings.Contains(got, `"A": "a"`) {
@@ -383,8 +396,11 @@ func TestRunMultipleTargets(t *testing.T) {
 }
 
 func TestResolveTargets(t *testing.T) {
+	t.Parallel()
+
 	t.Run("with target flag returns single target", func(t *testing.T) {
-		cli := &CLI{Target: "/some/path.json"}
+		t.Parallel()
+		cli := &CLI{Target: "/some/path.json", checker: alwaysTrue{}}
 		targets := cli.resolveTargets("/home/user")
 		if len(targets) != 1 {
 			t.Fatalf("expected 1 target, got %d", len(targets))
@@ -394,24 +410,27 @@ func TestResolveTargets(t *testing.T) {
 		}
 	})
 
-	t.Run("claude.json target has needsCleaning true", func(t *testing.T) {
-		cli := &CLI{Target: "/home/user/.claude.json"}
+	t.Run("claude.json target uses ClaudeJSONFormatter", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{Target: "/home/user/.claude.json", checker: alwaysTrue{}}
 		targets := cli.resolveTargets("/home/user")
-		if !targets[0].needsCleaning {
-			t.Error("claude.json should have needsCleaning=true")
+		if _, ok := targets[0].formatter.(*ccfmt.ClaudeJSONFormatter); !ok {
+			t.Errorf("claude.json should use *ccfmt.ClaudeJSONFormatter, got %T", targets[0].formatter)
 		}
 	})
 
-	t.Run("settings.json target has needsCleaning false", func(t *testing.T) {
-		cli := &CLI{Target: "/home/user/.claude/settings.json"}
+	t.Run("settings.json target uses SettingsJSONFormatter", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{Target: "/home/user/.claude/settings.json", checker: alwaysTrue{}}
 		targets := cli.resolveTargets("/home/user")
-		if targets[0].needsCleaning {
-			t.Error("settings.json should have needsCleaning=false")
+		if _, ok := targets[0].formatter.(*ccfmt.SettingsJSONFormatter); !ok {
+			t.Errorf("settings.json should use *ccfmt.SettingsJSONFormatter, got %T", targets[0].formatter)
 		}
 	})
 
 	t.Run("without target returns default targets", func(t *testing.T) {
-		cli := &CLI{}
+		t.Parallel()
+		cli := &CLI{checker: alwaysTrue{}}
 		targets := cli.resolveTargets("/home/user")
 		if len(targets) != 5 {
 			t.Fatalf("expected 5 targets, got %d", len(targets))
@@ -419,12 +438,12 @@ func TestResolveTargets(t *testing.T) {
 		if targets[0].path != "/home/user/.claude.json" {
 			t.Errorf("first target should be claude.json: %s", targets[0].path)
 		}
-		if !targets[0].needsCleaning {
-			t.Error("claude.json should have needsCleaning=true")
+		if _, ok := targets[0].formatter.(*ccfmt.ClaudeJSONFormatter); !ok {
+			t.Errorf("claude.json should use *ccfmt.ClaudeJSONFormatter, got %T", targets[0].formatter)
 		}
 		for _, tf := range targets[1:] {
-			if tf.needsCleaning {
-				t.Errorf("settings file %s should have needsCleaning=false", tf.path)
+			if _, ok := tf.formatter.(*ccfmt.SettingsJSONFormatter); !ok {
+				t.Errorf("settings file %s should use *ccfmt.SettingsJSONFormatter, got %T", tf.path, tf.formatter)
 			}
 		}
 	})

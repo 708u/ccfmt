@@ -40,15 +40,16 @@ go test -tags integration ./cmd/ -update
 Two packages:
 
 - **`ccfmt` (root)** - Library package.
-  - `Formatter.Format()` takes a `PathChecker` interface
-    and raw JSON bytes. Performs path cleaning + formatting.
+  - `ClaudeJSONFormatter` - Takes a `PathChecker`
+    interface. Performs path cleaning + key/array sorting.
     Used for `~/.claude.json`.
-  - `FormatJSON()` standalone function. Sorts keys and
-    arrays without path cleaning. Used for settings files.
-  - Both return `*FormatResult` (formatted bytes + `Stats`).
+  - `SettingsJSONFormatter` - Sorts keys and arrays
+    without path cleaning. Used for settings files.
+  - Both return `*FormatResult` (formatted bytes +
+    `Summarizer` interface for stats).
 - **`cmd/`** - CLI entrypoint (`package main`). Uses kong
   for flag parsing. Processes multiple target files with
-  `runAll()` / `runOne()`.
+  `runTargets()` / `formatFile()`.
 
 `PathChecker` interface enables testing without real
 filesystem access. Tests use `alwaysTrue`, `alwaysFalse`,

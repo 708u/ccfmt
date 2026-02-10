@@ -24,9 +24,13 @@ type CLI struct {
 	w       io.Writer
 }
 
+type Formatter interface {
+	Format([]byte) (*ccfmt.FormatResult, error)
+}
+
 type targetFile struct {
-	path          string
-	needsCleaning bool
+	path      string
+	formatter Formatter
 }
 
 type fileResult struct {
@@ -44,7 +48,7 @@ func main() {
 	}
 
 	cli := CLI{
-		checker: osPathChecker{},
+		checker: &osPathChecker{},
 		w:       os.Stdout,
 	}
 	kong.Parse(&cli,
@@ -80,12 +84,26 @@ func (c *CLI) runTargets(targets []targetFile) error {
 
 func (c *CLI) resolveTargets(home string) []targetFile {
 	if c.Target != "" {
-		return []targetFile{{
-			path:          c.Target,
-			needsCleaning: isClaudeJSON(c.Target),
-		}}
+		var f Formatter = ccfmt.NewSettingsJSONFormatter()
+		if filepath.Base(c.Target) == ".claude.json" {
+			f = ccfmt.NewClaudeJSONFormatter(c.checker)
+		}
+		return []targetFile{{path: c.Target, formatter: f}}
 	}
-	return defaultTargets(home)
+	return c.defaultTargets(home)
+}
+
+func (c *CLI) defaultTargets(home string) []targetFile {
+	cwd, _ := os.Getwd()
+	claude := ccfmt.NewClaudeJSONFormatter(c.checker)
+	settings := ccfmt.NewSettingsJSONFormatter()
+	return []targetFile{
+		{path: filepath.Join(home, ".claude.json"), formatter: claude},
+		{path: filepath.Join(home, ".claude", "settings.json"), formatter: settings},
+		{path: filepath.Join(home, ".claude", "settings.local.json"), formatter: settings},
+		{path: filepath.Join(cwd, ".claude", "settings.json"), formatter: settings},
+		{path: filepath.Join(cwd, ".claude", "settings.local.json"), formatter: settings},
+	}
 }
 
 func (c *CLI) formatFile(tf targetFile) (*fileResult, error) {
@@ -100,13 +118,7 @@ func (c *CLI) formatFile(tf targetFile) (*fileResult, error) {
 		return nil, fmt.Errorf("reading %s: %w", tf.path, err)
 	}
 
-	var result *ccfmt.FormatResult
-	if tf.needsCleaning {
-		f := &ccfmt.Formatter{PathChecker: c.checker}
-		result, err = f.Format(data)
-	} else {
-		result, err = ccfmt.FormatJSON(data)
-	}
+	result, err := tf.formatter.Format(data)
 	if err != nil {
 		return nil, fmt.Errorf("formatting %s: %w", tf.path, err)
 	}
@@ -131,21 +143,6 @@ func (c *CLI) formatFile(tf targetFile) (*fileResult, error) {
 		result:     result,
 		backupPath: backupPath,
 	}, nil
-}
-
-func defaultTargets(home string) []targetFile {
-	cwd, _ := os.Getwd()
-	return []targetFile{
-		{path: filepath.Join(home, ".claude.json"), needsCleaning: true},
-		{path: filepath.Join(home, ".claude", "settings.json"), needsCleaning: false},
-		{path: filepath.Join(home, ".claude", "settings.local.json"), needsCleaning: false},
-		{path: filepath.Join(cwd, ".claude", "settings.json"), needsCleaning: false},
-		{path: filepath.Join(cwd, ".claude", "settings.local.json"), needsCleaning: false},
-	}
-}
-
-func isClaudeJSON(path string) bool {
-	return filepath.Base(path) == ".claude.json"
 }
 
 func printResult(w io.Writer, r *fileResult, single bool) {
@@ -187,7 +184,7 @@ func splitLines(s string) []string {
 
 type osPathChecker struct{}
 
-func (osPathChecker) Exists(path string) bool {
+func (o *osPathChecker) Exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }

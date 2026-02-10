@@ -8,12 +8,19 @@ import (
 	"strings"
 )
 
+// FormatResult holds the formatted output and statistics.
 type FormatResult struct {
 	Data  []byte
-	Stats *Stats
+	Stats Summarizer
 }
 
-type Stats struct {
+// Summarizer produces a human-readable summary of formatting results.
+type Summarizer interface {
+	Summary(backupPath string) string
+}
+
+// ClaudeJSONFormatterStats holds statistics for ~/.claude.json formatting.
+type ClaudeJSONFormatterStats struct {
 	ProjectsBefore int
 	ProjectsAfter  int
 	RepoBefore     int
@@ -23,15 +30,15 @@ type Stats struct {
 	SizeAfter      int
 }
 
-func (s *Stats) ProjectsRemoved() int {
+func (s *ClaudeJSONFormatterStats) ProjectsRemoved() int {
 	return s.ProjectsBefore - s.ProjectsAfter
 }
 
-func (s *Stats) RepoPathsRemoved() int {
+func (s *ClaudeJSONFormatterStats) RepoPathsRemoved() int {
 	return s.RepoBefore - s.RepoAfter
 }
 
-func (s *Stats) Summary(backupPath string) string {
+func (s *ClaudeJSONFormatterStats) Summary(backupPath string) string {
 	var b strings.Builder
 	if s.ProjectsRemoved() > 0 {
 		fmt.Fprintf(&b, "Projects: %d -> %d (removed %d)\n",
@@ -49,42 +56,46 @@ func (s *Stats) Summary(backupPath string) string {
 	return b.String()
 }
 
+// SettingsJSONFormatterStats holds statistics for settings.json formatting.
+type SettingsJSONFormatterStats struct {
+	SizeBefore int
+	SizeAfter  int
+}
+
+func (s *SettingsJSONFormatterStats) Summary(backupPath string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Size: %s -> %s bytes\n",
+		formatComma(int64(s.SizeBefore)), formatComma(int64(s.SizeAfter)))
+	if backupPath != "" {
+		fmt.Fprintf(&b, "Backup: %s\n", backupPath)
+	}
+	return b.String()
+}
+
+// ClaudeJSONFormatter formats ~/.claude.json with path cleaning
+// (removing non-existent projects and GitHub repo paths)
+// in addition to key sorting and array sorting.
+type ClaudeJSONFormatter struct {
+	PathChecker PathChecker
+}
+
+func NewClaudeJSONFormatter(checker PathChecker) *ClaudeJSONFormatter {
+	return &ClaudeJSONFormatter{PathChecker: checker}
+}
+
+// PathChecker checks whether a filesystem path exists.
 type PathChecker interface {
 	Exists(path string) bool
 }
 
-type Formatter struct {
-	PathChecker PathChecker
-}
-
-// FormatJSON formats arbitrary JSON by sorting keys recursively
-// and sorting homogeneous arrays. No path cleaning is performed.
-func FormatJSON(data []byte) (*FormatResult, error) {
+func (f *ClaudeJSONFormatter) Format(data []byte) (*FormatResult, error) {
 	obj, err := decodeJSON(data)
 	if err != nil {
 		return nil, err
 	}
 
-	stats := &Stats{SizeBefore: len(data)}
-	sortArraysRecursive(obj)
-
-	out, err := encodeJSON(obj)
-	if err != nil {
-		return nil, err
-	}
-	stats.SizeAfter = len(out)
-
-	return &FormatResult{Data: out, Stats: stats}, nil
-}
-
-func (f *Formatter) Format(data []byte) (*FormatResult, error) {
-	obj, err := decodeJSON(data)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := &Stats{SizeBefore: len(data)}
-	cj := &claudeJSON{data: obj, checker: f.PathChecker}
+	stats := &ClaudeJSONFormatterStats{SizeBefore: len(data)}
+	cj := &claudeJSONData{data: obj, checker: f.PathChecker}
 	cj.cleanProjects(stats)
 	cj.cleanGitHubRepoPaths(stats)
 	sortArraysRecursive(cj.data)
@@ -98,34 +109,12 @@ func (f *Formatter) Format(data []byte) (*FormatResult, error) {
 	return &FormatResult{Data: out, Stats: stats}, nil
 }
 
-func decodeJSON(data []byte) (map[string]any, error) {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-
-	var obj map[string]any
-	if err := dec.Decode(&obj); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-	return obj, nil
-}
-
-func encodeJSON(obj map[string]any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(obj); err != nil {
-		return nil, fmt.Errorf("encoding JSON: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
-type claudeJSON struct {
+type claudeJSONData struct {
 	data    map[string]any
 	checker PathChecker
 }
 
-func (c *claudeJSON) cleanProjects(stats *Stats) {
+func (c *claudeJSONData) cleanProjects(stats *ClaudeJSONFormatterStats) {
 	raw, ok := c.data["projects"]
 	if !ok {
 		c.data["projects"] = map[string]any{}
@@ -145,7 +134,7 @@ func (c *claudeJSON) cleanProjects(stats *Stats) {
 	stats.ProjectsAfter = len(projects)
 }
 
-func (c *claudeJSON) cleanGitHubRepoPaths(stats *Stats) {
+func (c *claudeJSONData) cleanGitHubRepoPaths(stats *ClaudeJSONFormatterStats) {
 	raw, ok := c.data["githubRepoPaths"]
 	if !ok {
 		c.data["githubRepoPaths"] = map[string]any{}
@@ -199,6 +188,54 @@ func (c *claudeJSON) cleanGitHubRepoPaths(stats *Stats) {
 	}
 	stats.RepoAfter = totalAfter
 	stats.RemovedRepos = reposBefore - len(repos)
+}
+
+// SettingsJSONFormatter formats settings.json / settings.local.json
+// by sorting keys recursively and sorting homogeneous arrays.
+// No path cleaning is performed.
+type SettingsJSONFormatter struct{}
+
+func NewSettingsJSONFormatter() *SettingsJSONFormatter { return &SettingsJSONFormatter{} }
+
+func (s *SettingsJSONFormatter) Format(data []byte) (*FormatResult, error) {
+	obj, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+
+	sortArraysRecursive(obj)
+
+	out, err := encodeJSON(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FormatResult{
+		Data:  out,
+		Stats: &SettingsJSONFormatterStats{SizeBefore: len(data), SizeAfter: len(out)},
+	}, nil
+}
+
+func decodeJSON(data []byte) (map[string]any, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+
+	var obj map[string]any
+	if err := dec.Decode(&obj); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	return obj, nil
+}
+
+func encodeJSON(obj map[string]any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(obj); err != nil {
+		return nil, fmt.Errorf("encoding JSON: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func sortArraysRecursive(v any) {

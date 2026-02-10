@@ -27,6 +27,7 @@ type alwaysFalse struct{}
 func (alwaysFalse) Exists(string) bool { return false }
 
 func TestFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -164,7 +165,8 @@ func TestFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &Formatter{PathChecker: tt.checker}
+			t.Parallel()
+			f := NewClaudeJSONFormatter(tt.checker)
 			result, err := f.Format([]byte(tt.input))
 			if tt.wantErr {
 				if err == nil {
@@ -183,7 +185,8 @@ func TestFormat(t *testing.T) {
 	}
 }
 
-func TestFormatJSON(t *testing.T) {
+func TestSettingsJSONFormatter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -224,7 +227,8 @@ func TestFormatJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := FormatJSON([]byte(tt.input))
+			t.Parallel()
+			result, err := NewSettingsJSONFormatter().Format([]byte(tt.input))
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -242,18 +246,19 @@ func TestFormatJSON(t *testing.T) {
 	}
 }
 
-func TestFormatJSONDoesNotAddProjects(t *testing.T) {
+func TestSettingsJSONFormatterDoesNotAddProjects(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "value"}`
-	result, err := FormatJSON([]byte(input))
+	result, err := NewSettingsJSONFormatter().Format([]byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	got := string(result.Data)
 	if contains := "projects"; len(got) > 0 && containsKey(got, contains) {
-		t.Errorf("FormatJSON should not add %q key", contains)
+		t.Errorf("SettingsJSONFormatter should not add %q key", contains)
 	}
 	if contains := "githubRepoPaths"; containsKey(got, contains) {
-		t.Errorf("FormatJSON should not add %q key", contains)
+		t.Errorf("SettingsJSONFormatter should not add %q key", contains)
 	}
 }
 
@@ -264,13 +269,14 @@ func containsKey(jsonStr, key string) bool {
 }
 
 func TestFormatStats(t *testing.T) {
+	t.Parallel()
 	input := `{"projects": {"/exists": {}, "/gone": {}}, "githubRepoPaths": {"r": ["/exists", "/gone"]}}`
-	f := &Formatter{PathChecker: checkerFor("/exists")}
+	f := NewClaudeJSONFormatter(checkerFor("/exists"))
 	result, err := f.Format([]byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	s := result.Stats
+	s := result.Stats.(*ClaudeJSONFormatterStats)
 	if s.ProjectsRemoved() != 1 {
 		t.Errorf("ProjectsRemoved = %d, want 1", s.ProjectsRemoved())
 	}
@@ -280,6 +286,7 @@ func TestFormatStats(t *testing.T) {
 }
 
 func TestFormatComma(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int64
 		want string
@@ -291,16 +298,20 @@ func TestFormatComma(t *testing.T) {
 		{1234567890, "1,234,567,890"},
 	}
 	for _, tt := range tests {
-		got := formatComma(tt.n)
-		if got != tt.want {
-			t.Errorf("formatComma(%d) = %q, want %q", tt.n, got, tt.want)
-		}
+		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
+			got := formatComma(tt.n)
+			if got != tt.want {
+				t.Errorf("formatComma(%d) = %q, want %q", tt.n, got, tt.want)
+			}
+		})
 	}
 }
 
 func TestFormatOutputValidity(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "value", "num": 42, "arr": [3, 1, 2]}`
-	f := &Formatter{PathChecker: alwaysTrue{}}
+	f := NewClaudeJSONFormatter(alwaysTrue{})
 	result, err := f.Format([]byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
