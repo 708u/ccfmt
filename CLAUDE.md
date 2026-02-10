@@ -66,6 +66,7 @@ live in `cmd/integration_test.go`. Golden test data is in
 cctidy              # Format all 5 target files
 cctidy -t FILE      # Format a specific file only
 cctidy --dry-run    # Show changes without writing
+cctidy --check      # Exit 1 if any file needs formatting
 cctidy --backup     # Create backup before writing
 cctidy -v           # Show formatting details
 ```
