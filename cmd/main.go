@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/708u/ccfmt"
@@ -13,10 +14,15 @@ import (
 var version = "dev"
 
 type CLI struct {
-	File    string           `help:"Path to JSON file." default:"${default_file}" short:"f"`
+	Target  string           `help:"Path to a specific file to format." short:"t" name:"target"`
 	Backup  bool             `help:"Create backup before writing."`
 	DryRun  bool             `help:"Show changes without writing." name:"dry-run"`
 	Version kong.VersionFlag `help:"Print version."`
+}
+
+type targetFile struct {
+	path          string
+	needsCleaning bool
 }
 
 func main() {
@@ -28,50 +34,133 @@ func main() {
 
 	var cli CLI
 	kong.Parse(&cli,
-		kong.Vars{"default_file": home + "/.claude.json"},
 		kong.Vars{"version": version},
 	)
 
-	if err := run(&cli, osPathChecker{}, os.Stdout); err != nil {
+	targets := resolveTargets(&cli, home)
+	if err := runAll(&cli, targets, osPathChecker{}, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "ccfmt: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(cli *CLI, checker ccfmt.PathChecker, w io.Writer) error {
-	info, err := os.Stat(cli.File)
+func resolveTargets(cli *CLI, home string) []targetFile {
+	if cli.Target != "" {
+		return []targetFile{{
+			path:          cli.Target,
+			needsCleaning: isClaudeJSON(cli.Target),
+		}}
+	}
+	return defaultTargets(home)
+}
+
+func defaultTargets(home string) []targetFile {
+	cwd, _ := os.Getwd()
+	return []targetFile{
+		{path: filepath.Join(home, ".claude.json"), needsCleaning: true},
+		{path: filepath.Join(home, ".claude", "settings.json"), needsCleaning: false},
+		{path: filepath.Join(home, ".claude", "settings.local.json"), needsCleaning: false},
+		{path: filepath.Join(cwd, ".claude", "settings.json"), needsCleaning: false},
+		{path: filepath.Join(cwd, ".claude", "settings.local.json"), needsCleaning: false},
+	}
+}
+
+func isClaudeJSON(path string) bool {
+	return filepath.Base(path) == ".claude.json"
+}
+
+func runAll(cli *CLI, targets []targetFile, checker ccfmt.PathChecker, w io.Writer) error {
+	singleTarget := len(targets) == 1
+
+	for _, tf := range targets {
+		err := runOne(cli, tf, checker, w, singleTarget)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker, w io.Writer, singleTarget bool) error {
+	info, err := os.Stat(tf.path)
 	if err != nil {
-		return fmt.Errorf("%s not found", cli.File)
+		if os.IsNotExist(err) {
+			if singleTarget {
+				return fmt.Errorf("%s not found", tf.path)
+			}
+			fmt.Fprintf(w, "%s: skipped (not found)\n\n", tf.path)
+			return nil
+		}
+		return fmt.Errorf("stat %s: %w", tf.path, err)
 	}
 	perm := info.Mode().Perm()
 
-	data, err := os.ReadFile(cli.File)
+	data, err := os.ReadFile(tf.path)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", cli.File, err)
+		return fmt.Errorf("reading %s: %w", tf.path, err)
 	}
 
-	f := &ccfmt.Formatter{PathChecker: checker}
-	result, err := f.Format(data)
+	var result *ccfmt.FormatResult
+	if tf.needsCleaning {
+		f := &ccfmt.Formatter{PathChecker: checker}
+		result, err = f.Format(data)
+	} else {
+		result, err = ccfmt.FormatJSON(data)
+	}
 	if err != nil {
-		return err
+		return fmt.Errorf("formatting %s: %w", tf.path, err)
 	}
 
 	var backupPath string
 	if !cli.DryRun {
 		if cli.Backup {
 			backupPath = fmt.Sprintf("%s.backup.%s",
-				cli.File, time.Now().Format("20060102150405"))
+				tf.path, time.Now().Format("20060102150405"))
 			if err := os.WriteFile(backupPath, data, perm); err != nil {
 				return fmt.Errorf("creating backup: %w", err)
 			}
 		}
-		if err := os.WriteFile(cli.File, result.Data, perm); err != nil {
-			return fmt.Errorf("writing %s: %w", cli.File, err)
+		if err := os.WriteFile(tf.path, result.Data, perm); err != nil {
+			return fmt.Errorf("writing %s: %w", tf.path, err)
 		}
 	}
 
-	fmt.Fprint(w, result.Stats.Summary(backupPath))
+	if !singleTarget {
+		if !result.Stats.Changed() {
+			fmt.Fprintf(w, "%s:\n  (no changes)\n\n", tf.path)
+		} else {
+			fmt.Fprintf(w, "%s:\n", tf.path)
+			for _, line := range splitLines(result.Stats.Summary(backupPath)) {
+				fmt.Fprintf(w, "  %s\n", line)
+			}
+			fmt.Fprintln(w)
+		}
+	} else {
+		fmt.Fprint(w, result.Stats.Summary(backupPath))
+	}
+
 	return nil
+}
+
+func splitLines(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var lines []string
+	start := 0
+	for i := range len(s) {
+		if s[i] == '\n' {
+			line := s[start:i]
+			if line != "" {
+				lines = append(lines, line)
+			}
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
 }
 
 type osPathChecker struct{}
