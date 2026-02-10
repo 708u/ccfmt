@@ -69,3 +69,7 @@ cctidy --dry-run    # Show changes without writing
 cctidy --backup     # Create backup before writing
 cctidy -v           # Show formatting details
 ```
+
+## Pull Requests
+
+Write all PR titles and descriptions in English.

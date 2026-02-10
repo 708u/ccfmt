@@ -40,6 +40,10 @@ cctidy --dry-run    # Show changes without writing
 cctidy --backup     # Create backup before writing
 ```
 
+## Contributing
+
+Write all PR titles and descriptions in English.
+
 ## License
 
 [MIT](LICENSE)
