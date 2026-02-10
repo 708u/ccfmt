@@ -210,37 +210,37 @@ func writeFile(path string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
 
-	success := false
+	closed := false
 	defer func() {
-		if !success {
-			os.Remove(tmp.Name())
+		if !closed {
+			_ = tmp.Close()
+		}
+		if !closed {
+			_ = os.Remove(tmp.Name())
 		}
 	}()
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
 		return fmt.Errorf("writing temp file: %w", err)
 	}
 
 	if err := tmp.Chmod(perm); err != nil {
-		tmp.Close()
 		return fmt.Errorf("setting permissions: %w", err)
 	}
 
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
 		return fmt.Errorf("syncing temp file: %w", err)
 	}
 
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("closing temp file: %w", err)
 	}
+	closed = true
 
 	if err := os.Rename(tmp.Name(), path); err != nil {
 		return fmt.Errorf("renaming temp file: %w", err)
 	}
 
-	success = true
 	return nil
 }
 
