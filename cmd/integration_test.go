@@ -17,10 +17,7 @@ type alwaysTrue struct{}
 
 func (alwaysTrue) Exists(string) bool { return true }
 
-var (
-	update                        = flag.Bool("update", false, "update golden files")
-	mockChecker ccfmt.PathChecker = alwaysTrue{}
-)
+var update = flag.Bool("update", false, "update golden files")
 
 func TestGolden(t *testing.T) {
 	input, err := os.ReadFile("testdata/input.json")
@@ -109,9 +106,8 @@ func TestIntegrationPathCleaning(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	targets := []targetFile{{path: file, needsCleaning: true}}
-	cli := &CLI{Target: file}
-	if err := runAll(cli, targets, osPathChecker{}, &buf); err != nil {
+	cli := &CLI{Target: file, checker: osPathChecker{}, w: &buf}
+	if err := cli.Run(dir); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -155,9 +151,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		targets := []targetFile{{path: file, needsCleaning: true}}
-		cli := &CLI{Target: file}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -183,9 +178,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		targets := []targetFile{{path: file, needsCleaning: true}}
-		cli := &CLI{Target: file, DryRun: true}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, DryRun: true, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -211,9 +205,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		targets := []targetFile{{path: file, needsCleaning: true}}
-		cli := &CLI{Target: file, Backup: true}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, Backup: true, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -243,9 +236,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o600)
 
 		var buf bytes.Buffer
-		targets := []targetFile{{path: file, needsCleaning: true}}
-		cli := &CLI{Target: file}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -257,9 +249,8 @@ func TestRunSingleTarget(t *testing.T) {
 
 	t.Run("single target file not found error", func(t *testing.T) {
 		var buf bytes.Buffer
-		targets := []targetFile{{path: "/nonexistent/path/test.json", needsCleaning: true}}
-		cli := &CLI{Target: "/nonexistent/path/test.json"}
-		err := runAll(cli, targets, mockChecker, &buf)
+		cli := &CLI{Target: "/nonexistent/path/test.json", checker: alwaysTrue{}, w: &buf}
+		err := cli.Run("/tmp")
 		if err == nil {
 			t.Fatal("expected error for missing file")
 		}
@@ -281,14 +272,15 @@ func TestRunMultipleTargets(t *testing.T) {
 		settingsJSON := filepath.Join(settingsDir, "settings.json")
 		os.WriteFile(settingsJSON, []byte(`{"permissions":{"allow":["Write","Read"]}}`), 0o644)
 
+		var buf bytes.Buffer
+		// Use Run with home=dir so defaultTargets resolves to our temp dir
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
+		// Manually call with crafted targets since defaultTargets uses cwd
 		targets := []targetFile{
 			{path: claudeJSON, needsCleaning: true},
 			{path: settingsJSON, needsCleaning: false},
 		}
-
-		var buf bytes.Buffer
-		cli := &CLI{}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -319,14 +311,13 @@ func TestRunMultipleTargets(t *testing.T) {
 
 		missingFile := filepath.Join(dir, ".claude", "settings.json")
 
+		var buf bytes.Buffer
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
 			{path: claudeJSON, needsCleaning: true},
 			{path: missingFile, needsCleaning: false},
 		}
-
-		var buf bytes.Buffer
-		cli := &CLI{}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -343,14 +334,13 @@ func TestRunMultipleTargets(t *testing.T) {
 		settingsJSON := filepath.Join(dir, "settings.json")
 		os.WriteFile(settingsJSON, []byte(formatted), 0o644)
 
+		var buf bytes.Buffer
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
 			{path: settingsJSON, needsCleaning: false},
 			{path: filepath.Join(dir, "missing.json"), needsCleaning: false},
 		}
-
-		var buf bytes.Buffer
-		cli := &CLI{}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		if err := cli.runTargets(targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -367,13 +357,9 @@ func TestRunMultipleTargets(t *testing.T) {
 		settingsJSON := filepath.Join(dir, "settings.json")
 		os.WriteFile(settingsJSON, []byte(input), 0o644)
 
-		targets := []targetFile{
-			{path: settingsJSON, needsCleaning: false},
-		}
-
 		var buf bytes.Buffer
-		cli := &CLI{Target: settingsJSON}
-		if err := runAll(cli, targets, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: settingsJSON, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -399,7 +385,7 @@ func TestRunMultipleTargets(t *testing.T) {
 func TestResolveTargets(t *testing.T) {
 	t.Run("with target flag returns single target", func(t *testing.T) {
 		cli := &CLI{Target: "/some/path.json"}
-		targets := resolveTargets(cli, "/home/user")
+		targets := cli.resolveTargets("/home/user")
 		if len(targets) != 1 {
 			t.Fatalf("expected 1 target, got %d", len(targets))
 		}
@@ -410,7 +396,7 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("claude.json target has needsCleaning true", func(t *testing.T) {
 		cli := &CLI{Target: "/home/user/.claude.json"}
-		targets := resolveTargets(cli, "/home/user")
+		targets := cli.resolveTargets("/home/user")
 		if !targets[0].needsCleaning {
 			t.Error("claude.json should have needsCleaning=true")
 		}
@@ -418,7 +404,7 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("settings.json target has needsCleaning false", func(t *testing.T) {
 		cli := &CLI{Target: "/home/user/.claude/settings.json"}
-		targets := resolveTargets(cli, "/home/user")
+		targets := cli.resolveTargets("/home/user")
 		if targets[0].needsCleaning {
 			t.Error("settings.json should have needsCleaning=false")
 		}
@@ -426,7 +412,7 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("without target returns default targets", func(t *testing.T) {
 		cli := &CLI{}
-		targets := resolveTargets(cli, "/home/user")
+		targets := cli.resolveTargets("/home/user")
 		if len(targets) != 5 {
 			t.Fatalf("expected 5 targets, got %d", len(targets))
 		}

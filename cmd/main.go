@@ -19,55 +19,14 @@ type CLI struct {
 	Backup  bool             `help:"Create backup before writing."`
 	DryRun  bool             `help:"Show changes without writing." name:"dry-run"`
 	Version kong.VersionFlag `help:"Print version."`
+
+	checker ccfmt.PathChecker
+	w       io.Writer
 }
 
 type targetFile struct {
 	path          string
 	needsCleaning bool
-}
-
-func main() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ccfmt: %v\n", err)
-		os.Exit(1)
-	}
-
-	var cli CLI
-	kong.Parse(&cli,
-		kong.Vars{"version": version},
-	)
-
-	targets := resolveTargets(&cli, home)
-	if err := runAll(&cli, targets, osPathChecker{}, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "ccfmt: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func resolveTargets(cli *CLI, home string) []targetFile {
-	if cli.Target != "" {
-		return []targetFile{{
-			path:          cli.Target,
-			needsCleaning: isClaudeJSON(cli.Target),
-		}}
-	}
-	return defaultTargets(home)
-}
-
-func defaultTargets(home string) []targetFile {
-	cwd, _ := os.Getwd()
-	return []targetFile{
-		{path: filepath.Join(home, ".claude.json"), needsCleaning: true},
-		{path: filepath.Join(home, ".claude", "settings.json"), needsCleaning: false},
-		{path: filepath.Join(home, ".claude", "settings.local.json"), needsCleaning: false},
-		{path: filepath.Join(cwd, ".claude", "settings.json"), needsCleaning: false},
-		{path: filepath.Join(cwd, ".claude", "settings.local.json"), needsCleaning: false},
-	}
-}
-
-func isClaudeJSON(path string) bool {
-	return filepath.Base(path) == ".claude.json"
 }
 
 type fileResult struct {
@@ -77,24 +36,59 @@ type fileResult struct {
 	backupPath string
 }
 
-func runAll(cli *CLI, targets []targetFile, checker ccfmt.PathChecker, w io.Writer) error {
+func main() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ccfmt: %v\n", err)
+		os.Exit(1)
+	}
+
+	cli := CLI{
+		checker: osPathChecker{},
+		w:       os.Stdout,
+	}
+	kong.Parse(&cli,
+		kong.Vars{"version": version},
+	)
+
+	if err := cli.Run(home); err != nil {
+		fmt.Fprintf(os.Stderr, "ccfmt: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func (c *CLI) Run(home string) error {
+	return c.runTargets(c.resolveTargets(home))
+}
+
+func (c *CLI) runTargets(targets []targetFile) error {
 	single := len(targets) == 1
 
 	for _, tf := range targets {
-		r, err := runOne(cli, tf, checker)
+		r, err := c.formatFile(tf)
 		if err != nil {
 			if single || !os.IsNotExist(err) {
 				return err
 			}
-			fmt.Fprintf(w, "%s: skipped (not found)\n\n", tf.path)
+			fmt.Fprintf(c.w, "%s: skipped (not found)\n\n", tf.path)
 			continue
 		}
-		printResult(w, r, single)
+		printResult(c.w, r, single)
 	}
 	return nil
 }
 
-func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, error) {
+func (c *CLI) resolveTargets(home string) []targetFile {
+	if c.Target != "" {
+		return []targetFile{{
+			path:          c.Target,
+			needsCleaning: isClaudeJSON(c.Target),
+		}}
+	}
+	return defaultTargets(home)
+}
+
+func (c *CLI) formatFile(tf targetFile) (*fileResult, error) {
 	info, err := os.Stat(tf.path)
 	if err != nil {
 		return nil, err
@@ -108,7 +102,7 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, er
 
 	var result *ccfmt.FormatResult
 	if tf.needsCleaning {
-		f := &ccfmt.Formatter{PathChecker: checker}
+		f := &ccfmt.Formatter{PathChecker: c.checker}
 		result, err = f.Format(data)
 	} else {
 		result, err = ccfmt.FormatJSON(data)
@@ -118,8 +112,8 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, er
 	}
 
 	var backupPath string
-	if !cli.DryRun {
-		if cli.Backup {
+	if !c.DryRun {
+		if c.Backup {
 			backupPath = fmt.Sprintf("%s.backup.%s",
 				tf.path, time.Now().Format("20060102150405"))
 			if err := os.WriteFile(backupPath, data, perm); err != nil {
@@ -137,6 +131,21 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, er
 		result:     result,
 		backupPath: backupPath,
 	}, nil
+}
+
+func defaultTargets(home string) []targetFile {
+	cwd, _ := os.Getwd()
+	return []targetFile{
+		{path: filepath.Join(home, ".claude.json"), needsCleaning: true},
+		{path: filepath.Join(home, ".claude", "settings.json"), needsCleaning: false},
+		{path: filepath.Join(home, ".claude", "settings.local.json"), needsCleaning: false},
+		{path: filepath.Join(cwd, ".claude", "settings.json"), needsCleaning: false},
+		{path: filepath.Join(cwd, ".claude", "settings.local.json"), needsCleaning: false},
+	}
+}
+
+func isClaudeJSON(path string) bool {
+	return filepath.Base(path) == ".claude.json"
 }
 
 func printResult(w io.Writer, r *fileResult, single bool) {
