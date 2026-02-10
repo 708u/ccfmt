@@ -137,7 +137,7 @@ func (c *CLI) formatFile(tf targetFile) (*fileResult, error) {
 				return nil, fmt.Errorf("creating backup: %w", err)
 			}
 		}
-		if err := writeFileAtomic(tf.path, result.Data, perm); err != nil {
+		if err := writeFile(tf.path, result.Data, perm); err != nil {
 			return nil, fmt.Errorf("writing %s: %w", tf.path, err)
 		}
 	}
@@ -195,7 +195,7 @@ func splitLines(s string) []string {
 	return lines
 }
 
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+func writeFile(path string, data []byte, perm os.FileMode) error {
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("resolving path: %w", err)

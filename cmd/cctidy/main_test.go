@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestWriteFileAtomic(t *testing.T) {
+func TestWriteFile(t *testing.T) {
 	t.Parallel()
 
 	t.Run("basic write", func(t *testing.T) {
@@ -17,7 +17,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		path := filepath.Join(dir, "out.json")
 		data := []byte(`{"hello": "world"}`)
 
-		if err := writeFileAtomic(path, data, 0o644); err != nil {
+		if err := writeFile(path, data, 0o644); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -37,7 +37,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		os.WriteFile(path, []byte("old content"), 0o644)
 
 		newData := []byte("new content")
-		if err := writeFileAtomic(path, newData, 0o644); err != nil {
+		if err := writeFile(path, newData, 0o644); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -52,7 +52,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "out.json")
 
-		if err := writeFileAtomic(path, []byte("data"), 0o600); err != nil {
+		if err := writeFile(path, []byte("data"), 0o600); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -67,7 +67,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "out.json")
 
-		writeFileAtomic(path, []byte("data"), 0o644)
+		writeFile(path, []byte("data"), 0o644)
 
 		matches, _ := filepath.Glob(filepath.Join(dir, "out.json.tmp.*"))
 		if len(matches) != 0 {
@@ -80,7 +80,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "out.json")
 
-		if err := writeFileAtomic(path, []byte{}, 0o644); err != nil {
+		if err := writeFile(path, []byte{}, 0o644); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -96,7 +96,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		path := filepath.Join(dir, "out.json")
 		data := bytes.Repeat([]byte("x"), 2*1024*1024)
 
-		if err := writeFileAtomic(path, data, 0o644); err != nil {
+		if err := writeFile(path, data, 0o644); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -109,7 +109,7 @@ func TestWriteFileAtomic(t *testing.T) {
 	t.Run("nonexistent directory", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join("/nonexistent", "dir", "out.json")
-		err := writeFileAtomic(path, []byte("data"), 0o644)
+		err := writeFile(path, []byte("data"), 0o644)
 		if err == nil {
 			t.Fatal("expected error for nonexistent directory")
 		}
@@ -126,7 +126,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		t.Cleanup(func() { os.Chmod(dir, 0o755) })
 
 		path := filepath.Join(dir, "out.json")
-		err := writeFileAtomic(path, []byte("data"), 0o644)
+		err := writeFile(path, []byte("data"), 0o644)
 		if err == nil {
 			t.Fatal("expected error for readonly directory")
 		}
@@ -147,7 +147,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		os.Symlink(realPath, linkPath)
 
 		newData := []byte("updated")
-		if err := writeFileAtomic(linkPath, newData, 0o644); err != nil {
+		if err := writeFile(linkPath, newData, 0o644); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
