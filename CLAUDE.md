@@ -66,6 +66,7 @@ data is in `cmd/cctidy/testdata/`.
 cctidy              # Format all 5 target files
 cctidy -t FILE      # Format a specific file only
 cctidy --dry-run    # Show changes without writing
+cctidy --check      # Exit 1 if any file needs formatting
 cctidy --backup     # Create backup before writing
 cctidy -v           # Show formatting details
 ```

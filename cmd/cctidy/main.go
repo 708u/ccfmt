@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,12 +13,15 @@ import (
 	"github.com/alecthomas/kong"
 )
 
+var errUnformatted = errors.New("unformatted files detected")
+
 var version = "dev"
 
 type CLI struct {
 	Target  string           `help:"Path to a specific file to format." short:"t" name:"target"`
 	Backup  bool             `help:"Create backup before writing."`
 	DryRun  bool             `help:"Show changes without writing." name:"dry-run"`
+	Check   bool             `help:"Exit with 1 if any file needs formatting."`
 	Verbose bool             `help:"Show formatting details." short:"v"`
 	Version kong.VersionFlag `help:"Print version."`
 
@@ -50,15 +54,23 @@ func main() {
 
 	cli := CLI{
 		checker: &osPathChecker{},
-		w:       os.Stdout,
+		w:       os.Stderr,
 	}
 	kong.Parse(&cli,
 		kong.Vars{"version": version},
 	)
 
+	if cli.Check && (cli.Backup || cli.DryRun) {
+		fmt.Fprintf(os.Stderr, "cctidy: --check cannot be combined with --backup or --dry-run\n")
+		os.Exit(2)
+	}
+
 	if err := cli.Run(home); err != nil {
+		if errors.Is(err, errUnformatted) {
+			os.Exit(1)
+		}
 		fmt.Fprintf(os.Stderr, "cctidy: %v\n", err)
-		os.Exit(1)
+		os.Exit(2)
 	}
 }
 
@@ -66,7 +78,50 @@ func (c *CLI) Run(home string) error {
 	return c.runTargets(c.resolveTargets(home))
 }
 
+func (c *CLI) checkFile(tf targetFile) (bool, error) {
+	data, err := os.ReadFile(tf.path)
+	if err != nil {
+		return false, err
+	}
+
+	result, err := tf.formatter.Format(data)
+	if err != nil {
+		return false, fmt.Errorf("formatting %s: %w", tf.path, err)
+	}
+
+	return bytes.Equal(data, result.Data), nil
+}
+
+func (c *CLI) checkTargets(targets []targetFile) error {
+	single := len(targets) == 1
+	hasUnformatted := false
+
+	for _, tf := range targets {
+		formatted, err := c.checkFile(tf)
+		if err != nil {
+			if single || !os.IsNotExist(err) {
+				return err
+			}
+			continue
+		}
+		if !formatted {
+			hasUnformatted = true
+			if c.Verbose {
+				fmt.Fprintf(c.w, "%s: needs formatting\n", tf.path)
+			}
+		}
+	}
+
+	if hasUnformatted {
+		return errUnformatted
+	}
+	return nil
+}
+
 func (c *CLI) runTargets(targets []targetFile) error {
+	if c.Check {
+		return c.checkTargets(targets)
+	}
 	single := len(targets) == 1
 
 	for _, tf := range targets {

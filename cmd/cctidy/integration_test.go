@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -409,6 +410,180 @@ func TestRunMultipleTargets(t *testing.T) {
 		}
 		if !strings.Contains(got, `"allow"`) {
 			t.Error("permissions should be preserved")
+		}
+	})
+}
+
+func TestCheck(t *testing.T) {
+	t.Parallel()
+
+	t.Run("formatted file returns nil", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(formatted), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Target: file, Check: true, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
+			t.Fatalf("expected nil, got: %v", err)
+		}
+		if buf.Len() != 0 {
+			t.Errorf("expected no output, got: %q", buf.String())
+		}
+	})
+
+	t.Run("unformatted file returns errUnformatted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(`{"b":1,"a":2}`), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Target: file, Check: true, checker: alwaysTrue{}, w: &buf}
+		err := cli.Run(dir)
+		if !errors.Is(err, errUnformatted) {
+			t.Fatalf("expected errUnformatted, got: %v", err)
+		}
+	})
+
+	t.Run("check does not modify file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		input := `{"b":1,"a":2}`
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(input), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Target: file, Check: true, checker: alwaysTrue{}, w: &buf}
+		cli.Run(dir)
+
+		data, _ := os.ReadFile(file)
+		if string(data) != input {
+			t.Errorf("file was modified in check mode")
+		}
+	})
+
+	t.Run("missing file returns error", func(t *testing.T) {
+		t.Parallel()
+		var buf bytes.Buffer
+		cli := &CLI{Target: "/nonexistent/path/test.json", Check: true, checker: alwaysTrue{}, w: &buf}
+		err := cli.Run("/tmp")
+		if err == nil {
+			t.Fatal("expected error for missing file")
+		}
+		if errors.Is(err, errUnformatted) {
+			t.Error("should not be errUnformatted")
+		}
+	})
+
+	t.Run("invalid JSON returns error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(`{invalid json`), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Target: file, Check: true, checker: alwaysTrue{}, w: &buf}
+		err := cli.Run(dir)
+		if err == nil {
+			t.Fatal("expected error for invalid JSON")
+		}
+		if errors.Is(err, errUnformatted) {
+			t.Error("should not be errUnformatted")
+		}
+	})
+}
+
+func TestCheckMultipleTargets(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all formatted returns nil", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		f1 := filepath.Join(dir, "a.json")
+		f2 := filepath.Join(dir, "b.json")
+		os.WriteFile(f1, []byte(formatted), 0o644)
+		os.WriteFile(f2, []byte(formatted), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter()},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter()},
+		}
+		if err := cli.runTargets(targets); err != nil {
+			t.Fatalf("expected nil, got: %v", err)
+		}
+	})
+
+	t.Run("one unformatted returns errUnformatted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		unformatted := `{"b":1,"a":2}`
+		f1 := filepath.Join(dir, "a.json")
+		f2 := filepath.Join(dir, "b.json")
+		os.WriteFile(f1, []byte(formatted), 0o644)
+		os.WriteFile(f2, []byte(unformatted), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter()},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter()},
+		}
+		err := cli.runTargets(targets)
+		if !errors.Is(err, errUnformatted) {
+			t.Fatalf("expected errUnformatted, got: %v", err)
+		}
+	})
+
+	t.Run("skips missing files", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		f1 := filepath.Join(dir, "a.json")
+		os.WriteFile(f1, []byte(formatted), 0o644)
+		missing := filepath.Join(dir, "missing.json")
+
+		var buf bytes.Buffer
+		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter()},
+			{path: missing, formatter: cctidy.NewSettingsJSONFormatter()},
+		}
+		if err := cli.runTargets(targets); err != nil {
+			t.Fatalf("expected nil, got: %v", err)
+		}
+	})
+
+	t.Run("verbose prints unformatted paths", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		unformatted := `{"b":1,"a":2}`
+		f1 := filepath.Join(dir, "a.json")
+		f2 := filepath.Join(dir, "b.json")
+		os.WriteFile(f1, []byte(formatted), 0o644)
+		os.WriteFile(f2, []byte(unformatted), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Check: true, Verbose: true, checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter()},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter()},
+		}
+		cli.runTargets(targets)
+
+		output := buf.String()
+		if !strings.Contains(output, f2+": needs formatting") {
+			t.Errorf("expected unformatted path in output: %s", output)
+		}
+		if strings.Contains(output, f1+": needs formatting") {
+			t.Errorf("formatted file should not appear in output: %s", output)
 		}
 	})
 }
