@@ -1,0 +1,31 @@
+{
+  "apiKeyHelper": "security find-generic-password -s claude-api-key -w",
+  "defaultMode": "bypassPermissions",
+  "env": {
+    "API_KEY": "yyy",
+    "SOME_TOKEN": "xxx"
+  },
+  "hooks": {
+    "PostToolUse": [],
+    "PreToolUse": [
+      {
+        "hooks": [
+          "echo pre-bash"
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Edit",
+      "Read",
+      "Write"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "mcp__dangerous_tool"
+    ]
+  }
+}
