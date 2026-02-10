@@ -30,23 +30,15 @@ type ClaudeJSONFormatterStats struct {
 	SizeAfter      int
 }
 
-func (s *ClaudeJSONFormatterStats) ProjectsRemoved() int {
-	return s.ProjectsBefore - s.ProjectsAfter
-}
-
-func (s *ClaudeJSONFormatterStats) RepoPathsRemoved() int {
-	return s.RepoBefore - s.RepoAfter
-}
-
 func (s *ClaudeJSONFormatterStats) Summary() string {
 	var b strings.Builder
-	if s.ProjectsRemoved() > 0 {
+	if removed := s.ProjectsBefore - s.ProjectsAfter; removed > 0 {
 		fmt.Fprintf(&b, "Projects: %d -> %d (removed %d)\n",
-			s.ProjectsBefore, s.ProjectsAfter, s.ProjectsRemoved())
+			s.ProjectsBefore, s.ProjectsAfter, removed)
 	}
-	if s.RepoPathsRemoved() > 0 {
+	if removed := s.RepoBefore - s.RepoAfter; removed > 0 {
 		fmt.Fprintf(&b, "GitHub repo paths: %d -> %d (removed %d paths, %d empty repos)\n",
-			s.RepoBefore, s.RepoAfter, s.RepoPathsRemoved(), s.RemovedRepos)
+			s.RepoBefore, s.RepoAfter, removed, s.RemovedRepos)
 	}
 	fmt.Fprintf(&b, "Size: %s -> %s bytes\n",
 		formatComma(int64(s.SizeBefore)), formatComma(int64(s.SizeAfter)))

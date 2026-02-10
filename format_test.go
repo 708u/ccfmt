@@ -275,11 +275,11 @@ func TestFormatStats(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	s := result.Stats.(*ClaudeJSONFormatterStats)
-	if s.ProjectsRemoved() != 1 {
-		t.Errorf("ProjectsRemoved = %d, want 1", s.ProjectsRemoved())
+	if removed := s.ProjectsBefore - s.ProjectsAfter; removed != 1 {
+		t.Errorf("projects removed = %d, want 1", removed)
 	}
-	if s.RepoPathsRemoved() != 1 {
-		t.Errorf("RepoPathsRemoved = %d, want 1", s.RepoPathsRemoved())
+	if removed := s.RepoBefore - s.RepoAfter; removed != 1 {
+		t.Errorf("repo paths removed = %d, want 1", removed)
 	}
 }
 
