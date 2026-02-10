@@ -50,7 +50,7 @@ func main() {
 
 	cli := CLI{
 		checker: &osPathChecker{},
-		w:       os.Stdout,
+		w:       os.Stderr,
 	}
 	kong.Parse(&cli,
 		kong.Vars{"version": version},
