@@ -269,8 +269,6 @@ func writeFile(path string, data []byte, perm os.FileMode) error {
 	defer func() {
 		if !closed {
 			_ = tmp.Close()
-		}
-		if !closed {
 			_ = os.Remove(tmp.Name())
 		}
 	}()
