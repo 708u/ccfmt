@@ -17,18 +17,16 @@ type alwaysTrue struct{}
 
 func (alwaysTrue) Exists(string) bool { return true }
 
-var (
-	update                        = flag.Bool("update", false, "update golden files")
-	mockChecker ccfmt.PathChecker = alwaysTrue{}
-)
+var update = flag.Bool("update", false, "update golden files")
 
 func TestGolden(t *testing.T) {
+	t.Parallel()
 	input, err := os.ReadFile("testdata/input.json")
 	if err != nil {
 		t.Fatalf("reading input: %v", err)
 	}
 
-	f := &ccfmt.Formatter{PathChecker: alwaysTrue{}}
+	f := ccfmt.NewClaudeJSONFormatter(alwaysTrue{})
 	result, err := f.Format(input)
 	if err != nil {
 		t.Fatalf("format: %v", err)
@@ -53,7 +51,39 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+func TestSettingsGolden(t *testing.T) {
+	t.Parallel()
+	input, err := os.ReadFile("testdata/settings_input.json")
+	if err != nil {
+		t.Fatalf("reading input: %v", err)
+	}
+
+	result, err := ccfmt.NewSettingsJSONFormatter().Format(input)
+	if err != nil {
+		t.Fatalf("format: %v", err)
+	}
+
+	goldenPath := "testdata/settings_golden.json"
+	if *update {
+		if err := os.WriteFile(goldenPath, result.Data, 0o644); err != nil {
+			t.Fatalf("updating golden: %v", err)
+		}
+		t.Log("settings golden file updated")
+		return
+	}
+
+	golden, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("reading golden (run with -update to generate): %v", err)
+	}
+
+	if !bytes.Equal(result.Data, golden) {
+		t.Errorf("output differs from golden:\ngot:\n%s\nwant:\n%s", result.Data, golden)
+	}
+}
+
 func TestIntegrationPathCleaning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	existingProject := filepath.Join(dir, "project-a")
@@ -75,12 +105,12 @@ func TestIntegrationPathCleaning(t *testing.T) {
   }
 }`
 
-	file := filepath.Join(dir, "claude.json")
+	file := filepath.Join(dir, ".claude.json")
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{File: file}
-	if err := run(cli, osPathChecker{}, &buf); err != nil {
+	cli := &CLI{Target: file, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(dir); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -114,18 +144,20 @@ func TestIntegrationPathCleaning(t *testing.T) {
 	}
 }
 
-func TestRun(t *testing.T) {
+func TestRunSingleTarget(t *testing.T) {
+	t.Parallel()
 	input := `{"z": 1, "a": 2}`
 	wantJSON := "{\n  \"a\": 2,\n  \"githubRepoPaths\": {},\n  \"projects\": {},\n  \"z\": 1\n}\n"
 
 	t.Run("normal flow writes file without backup", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		file := filepath.Join(dir, "test.json")
+		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{File: file}
-		if err := run(cli, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -134,25 +166,26 @@ func TestRun(t *testing.T) {
 			t.Errorf("file content mismatch:\ngot:\n%s\nwant:\n%s", data, wantJSON)
 		}
 
-		matches, _ := filepath.Glob(filepath.Join(dir, "test.json.backup.*"))
+		matches, _ := filepath.Glob(filepath.Join(dir, ".claude.json.backup.*"))
 		if len(matches) != 0 {
 			t.Errorf("backup created without --backup flag")
 		}
 
 		output := buf.String()
-		if !strings.Contains(output, "Keys sorted recursively.") {
-			t.Errorf("output missing expected line: %s", output)
+		if !strings.Contains(output, "Size:") {
+			t.Errorf("output missing size line: %s", output)
 		}
 	})
 
 	t.Run("dry-run does not modify file", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		file := filepath.Join(dir, "test.json")
+		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{File: file, DryRun: true}
-		if err := run(cli, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, DryRun: true, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -161,7 +194,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("file was modified in dry-run mode")
 		}
 
-		matches, _ := filepath.Glob(filepath.Join(dir, "test.json.backup.*"))
+		matches, _ := filepath.Glob(filepath.Join(dir, ".claude.json.backup.*"))
 		if len(matches) != 0 {
 			t.Errorf("backup created in dry-run mode")
 		}
@@ -173,13 +206,14 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("backup flag creates backup", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		file := filepath.Join(dir, "test.json")
+		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{File: file, Backup: true}
-		if err := run(cli, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, Backup: true, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -188,7 +222,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("file content mismatch")
 		}
 
-		matches, _ := filepath.Glob(filepath.Join(dir, "test.json.backup.*"))
+		matches, _ := filepath.Glob(filepath.Join(dir, ".claude.json.backup.*"))
 		if len(matches) != 1 {
 			t.Fatalf("expected 1 backup file, got %d", len(matches))
 		}
@@ -204,13 +238,14 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("preserves file permissions", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		file := filepath.Join(dir, "test.json")
+		file := filepath.Join(dir, ".claude.json")
 		os.WriteFile(file, []byte(input), 0o600)
 
 		var buf bytes.Buffer
-		cli := &CLI{File: file}
-		if err := run(cli, mockChecker, &buf); err != nil {
+		cli := &CLI{Target: file, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -220,15 +255,196 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	t.Run("file not found error", func(t *testing.T) {
+	t.Run("single target file not found error", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
-		cli := &CLI{File: "/nonexistent/path/test.json"}
-		err := run(cli, mockChecker, &buf)
+		cli := &CLI{Target: "/nonexistent/path/test.json", checker: alwaysTrue{}, w: &buf}
+		err := cli.Run("/tmp")
 		if err == nil {
 			t.Fatal("expected error for missing file")
 		}
-		if !strings.Contains(err.Error(), "not found") {
-			t.Errorf("error should mention 'not found': %v", err)
+		if !os.IsNotExist(err) {
+			t.Errorf("expected os.IsNotExist error: %v", err)
+		}
+	})
+}
+
+func TestRunMultipleTargets(t *testing.T) {
+	t.Parallel()
+
+	t.Run("formats multiple files", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		claudeJSON := filepath.Join(dir, ".claude.json")
+		os.WriteFile(claudeJSON, []byte(`{"z": 1, "a": 2}`), 0o644)
+
+		settingsDir := filepath.Join(dir, ".claude")
+		os.Mkdir(settingsDir, 0o755)
+		settingsJSON := filepath.Join(settingsDir, "settings.json")
+		os.WriteFile(settingsJSON, []byte(`{"permissions":{"allow":["Write","Read"]}}`), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: claudeJSON, formatter: ccfmt.NewClaudeJSONFormatter(alwaysTrue{})},
+			{path: settingsJSON, formatter: ccfmt.NewSettingsJSONFormatter()},
+		}
+		if err := cli.runTargets(targets); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		claudeData, _ := os.ReadFile(claudeJSON)
+		if !strings.Contains(string(claudeData), `"a": 2`) {
+			t.Error("claude.json was not formatted")
+		}
+
+		settingsData, _ := os.ReadFile(settingsJSON)
+		if !strings.Contains(string(settingsData), `"allow"`) {
+			t.Error("settings.json was not formatted")
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, claudeJSON+":") {
+			t.Errorf("output should contain claude.json path: %s", output)
+		}
+		if !strings.Contains(output, settingsJSON+":") {
+			t.Errorf("output should contain settings.json path: %s", output)
+		}
+	})
+
+	t.Run("skips non-existent files in multi mode", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		claudeJSON := filepath.Join(dir, ".claude.json")
+		os.WriteFile(claudeJSON, []byte(`{"z": 1, "a": 2}`), 0o644)
+
+		missingFile := filepath.Join(dir, ".claude", "settings.json")
+
+		var buf bytes.Buffer
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: claudeJSON, formatter: ccfmt.NewClaudeJSONFormatter(alwaysTrue{})},
+			{path: missingFile, formatter: ccfmt.NewSettingsJSONFormatter()},
+		}
+		if err := cli.runTargets(targets); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "skipped (not found)") {
+			t.Errorf("output should contain skip message: %s", output)
+		}
+	})
+
+	t.Run("no changes shown for already formatted file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		formatted := "{\n  \"a\": 1,\n  \"b\": 2\n}\n"
+		settingsJSON := filepath.Join(dir, "settings.json")
+		os.WriteFile(settingsJSON, []byte(formatted), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{checker: alwaysTrue{}, w: &buf}
+		targets := []targetFile{
+			{path: settingsJSON, formatter: ccfmt.NewSettingsJSONFormatter()},
+			{path: filepath.Join(dir, "missing.json"), formatter: ccfmt.NewSettingsJSONFormatter()},
+		}
+		if err := cli.runTargets(targets); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "(no changes)") {
+			t.Errorf("output should contain 'no changes': %s", output)
+		}
+	})
+
+	t.Run("settings file uses SettingsJSONFormatter without path cleaning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		input := `{"permissions":{"allow":["Write","Read"]},"env":{"Z":"z","A":"a"}}`
+		settingsJSON := filepath.Join(dir, "settings.json")
+		os.WriteFile(settingsJSON, []byte(input), 0o644)
+
+		var buf bytes.Buffer
+		cli := &CLI{Target: settingsJSON, checker: alwaysTrue{}, w: &buf}
+		if err := cli.Run(dir); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		data, _ := os.ReadFile(settingsJSON)
+		got := string(data)
+
+		if strings.Contains(got, `"projects"`) {
+			t.Error("SettingsJSONFormatter should not add projects key")
+		}
+		if strings.Contains(got, `"githubRepoPaths"`) {
+			t.Error("SettingsJSONFormatter should not add githubRepoPaths key")
+		}
+
+		if !strings.Contains(got, `"A": "a"`) {
+			t.Error("env keys should be sorted")
+		}
+		if !strings.Contains(got, `"allow"`) {
+			t.Error("permissions should be preserved")
+		}
+	})
+}
+
+func TestResolveTargets(t *testing.T) {
+	t.Parallel()
+
+	t.Run("with target flag returns single target", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{Target: "/some/path.json", checker: alwaysTrue{}}
+		targets := cli.resolveTargets("/home/user")
+		if len(targets) != 1 {
+			t.Fatalf("expected 1 target, got %d", len(targets))
+		}
+		if targets[0].path != "/some/path.json" {
+			t.Errorf("unexpected path: %s", targets[0].path)
+		}
+	})
+
+	t.Run("claude.json target uses ClaudeJSONFormatter", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{Target: "/home/user/.claude.json", checker: alwaysTrue{}}
+		targets := cli.resolveTargets("/home/user")
+		if _, ok := targets[0].formatter.(*ccfmt.ClaudeJSONFormatter); !ok {
+			t.Errorf("claude.json should use *ccfmt.ClaudeJSONFormatter, got %T", targets[0].formatter)
+		}
+	})
+
+	t.Run("settings.json target uses SettingsJSONFormatter", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{Target: "/home/user/.claude/settings.json", checker: alwaysTrue{}}
+		targets := cli.resolveTargets("/home/user")
+		if _, ok := targets[0].formatter.(*ccfmt.SettingsJSONFormatter); !ok {
+			t.Errorf("settings.json should use *ccfmt.SettingsJSONFormatter, got %T", targets[0].formatter)
+		}
+	})
+
+	t.Run("without target returns default targets", func(t *testing.T) {
+		t.Parallel()
+		cli := &CLI{checker: alwaysTrue{}}
+		targets := cli.resolveTargets("/home/user")
+		if len(targets) != 5 {
+			t.Fatalf("expected 5 targets, got %d", len(targets))
+		}
+		if targets[0].path != "/home/user/.claude.json" {
+			t.Errorf("first target should be claude.json: %s", targets[0].path)
+		}
+		if _, ok := targets[0].formatter.(*ccfmt.ClaudeJSONFormatter); !ok {
+			t.Errorf("claude.json should use *ccfmt.ClaudeJSONFormatter, got %T", targets[0].formatter)
+		}
+		for _, tf := range targets[1:] {
+			if _, ok := tf.formatter.(*ccfmt.SettingsJSONFormatter); !ok {
+				t.Errorf("settings file %s should use *ccfmt.SettingsJSONFormatter, got %T", tf.path, tf.formatter)
+			}
 		}
 	})
 }

@@ -1,6 +1,7 @@
 package ccfmt
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 )
@@ -26,6 +27,7 @@ type alwaysFalse struct{}
 func (alwaysFalse) Exists(string) bool { return false }
 
 func TestFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -163,7 +165,8 @@ func TestFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &Formatter{PathChecker: tt.checker}
+			t.Parallel()
+			f := NewClaudeJSONFormatter(tt.checker)
 			result, err := f.Format([]byte(tt.input))
 			if tt.wantErr {
 				if err == nil {
@@ -182,23 +185,106 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+func TestSettingsJSONFormatter(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:  "settings-style key sorting",
+			input: `{"permissions":{"allow":["Bash","Read"]},"env":{"Z_VAR":"z","A_VAR":"a"},"hooks":{"preToolUse":[]}}`,
+			want:  "{\n  \"env\": {\n    \"A_VAR\": \"a\",\n    \"Z_VAR\": \"z\"\n  },\n  \"hooks\": {\n    \"preToolUse\": []\n  },\n  \"permissions\": {\n    \"allow\": [\n      \"Bash\",\n      \"Read\"\n    ]\n  }\n}\n",
+		},
+		{
+			name:  "sort string arrays in permissions",
+			input: `{"permissions":{"allow":["Write","Bash","Read"],"deny":["mcp__dangerous","mcp__admin"]}}`,
+			want:  "{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash\",\n      \"Read\",\n      \"Write\"\n    ],\n    \"deny\": [\n      \"mcp__admin\",\n      \"mcp__dangerous\"\n    ]\n  }\n}\n",
+		},
+		{
+			name:  "no projects or githubRepoPaths added",
+			input: `{"apiKey":"test"}`,
+			want:  "{\n  \"apiKey\": \"test\"\n}\n",
+		},
+		{
+			name:    "invalid JSON",
+			input:   `{broken`,
+			wantErr: true,
+		},
+		{
+			name:  "empty object",
+			input: `{}`,
+			want:  "{}\n",
+		},
+		{
+			name:  "nested objects sorted recursively",
+			input: `{"z":{"b":2,"a":1},"a":{"d":4,"c":3}}`,
+			want:  "{\n  \"a\": {\n    \"c\": 3,\n    \"d\": 4\n  },\n  \"z\": {\n    \"a\": 1,\n    \"b\": 2\n  }\n}\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := NewSettingsJSONFormatter().Format([]byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := string(result.Data)
+			if got != tt.want {
+				t.Errorf("mismatch:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSettingsJSONFormatterDoesNotAddProjects(t *testing.T) {
+	t.Parallel()
+	input := `{"key": "value"}`
+	result, err := NewSettingsJSONFormatter().Format([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := string(result.Data)
+	assertNoKey(t, got, "projects")
+	assertNoKey(t, got, "githubRepoPaths")
+}
+
+func assertNoKey(t *testing.T, jsonStr, key string) {
+	t.Helper()
+	if len(jsonStr) > 0 && json.Valid([]byte(jsonStr)) &&
+		bytes.Contains([]byte(jsonStr), []byte(`"`+key+`"`)) {
+		t.Errorf("should not contain key %q", key)
+	}
+}
+
 func TestFormatStats(t *testing.T) {
+	t.Parallel()
 	input := `{"projects": {"/exists": {}, "/gone": {}}, "githubRepoPaths": {"r": ["/exists", "/gone"]}}`
-	f := &Formatter{PathChecker: checkerFor("/exists")}
+	f := NewClaudeJSONFormatter(checkerFor("/exists"))
 	result, err := f.Format([]byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	s := result.Stats
-	if s.ProjectsRemoved() != 1 {
-		t.Errorf("ProjectsRemoved = %d, want 1", s.ProjectsRemoved())
+	s := result.Stats.(*ClaudeJSONFormatterStats)
+	if removed := s.ProjectsBefore - s.ProjectsAfter; removed != 1 {
+		t.Errorf("projects removed = %d, want 1", removed)
 	}
-	if s.RepoPathsRemoved() != 1 {
-		t.Errorf("RepoPathsRemoved = %d, want 1", s.RepoPathsRemoved())
+	if removed := s.RepoBefore - s.RepoAfter; removed != 1 {
+		t.Errorf("repo paths removed = %d, want 1", removed)
 	}
 }
 
 func TestFormatComma(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int64
 		want string
@@ -210,16 +296,20 @@ func TestFormatComma(t *testing.T) {
 		{1234567890, "1,234,567,890"},
 	}
 	for _, tt := range tests {
-		got := formatComma(tt.n)
-		if got != tt.want {
-			t.Errorf("formatComma(%d) = %q, want %q", tt.n, got, tt.want)
-		}
+		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
+			got := formatComma(tt.n)
+			if got != tt.want {
+				t.Errorf("formatComma(%d) = %q, want %q", tt.n, got, tt.want)
+			}
+		})
 	}
 }
 
 func TestFormatOutputValidity(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "value", "num": 42, "arr": [3, 1, 2]}`
-	f := &Formatter{PathChecker: alwaysTrue{}}
+	f := NewClaudeJSONFormatter(alwaysTrue{})
 	result, err := f.Format([]byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

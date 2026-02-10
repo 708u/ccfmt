@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "additionalDirectories": [
+    "/Users/user/common-configs",
+    "/Users/user/shared-libs"
+  ],
+  "allowedTools": [
+    "Bash",
+    "Edit",
+    "Read",
+    "Write"
+  ],
+  "alwaysThinkingEnabled": true,
+  "attribution": {
+    "commit": "Co-authored-by: Claude",
+    "pr": "Built with Claude Code"
+  },
+  "autoUpdatesChannel": "latest",
+  "chatCleanupDays": 30,
+  "defaultMode": "default",
+  "disableAllHooks": false,
+  "disallowedTools": [
+    "Bash(shutdown)",
+    "mcp__dangerous__exec"
+  ],
+  "enabledPlugins": {
+    "formatter@acme-tools": true,
+    "github@claude-plugins-official": true,
+    "linter@acme-tools": false
+  },
+  "env": {
+    "ANTHROPIC_MODEL": "claude-opus-4-6",
+    "CUSTOM_VAR": "custom_value",
+    "MAX_THINKING_TOKENS": "31999",
+    "NODE_ENV": "production"
+  },
+  "extraKnownMarketplaces": {
+    "acme-tools": {
+      "source": {
+        "repo": "acme/claude-plugins",
+        "source": "github"
+      }
+    }
+  },
+  "filesuggestions": {
+    "command": "suggest.sh",
+    "timeout": 5000
+  },
+  "hooks": {
+    "Notification": [],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "prompt": "Verify the output",
+            "timeout": 30,
+            "type": "prompt"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreCompact": [],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "async": false,
+            "command": "lint.sh",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit"
+      }
+    ],
+    "SessionEnd": [],
+    "SessionStart": [],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "prompt": "Verify all tasks",
+            "timeout": 60,
+            "type": "agent"
+          }
+        ],
+        "matcher": null
+      }
+    ]
+  },
+  "includeCoAuthoredBy": false,
+  "language": "japanese",
+  "mcpServers": {
+    "http-server": {
+      "type": "http",
+      "url": "https://mcp.example.com/api"
+    },
+    "stdio-server": {
+      "args": [
+        "-y",
+        "mcp-server"
+      ],
+      "command": "npx",
+      "cwd": "/workspace",
+      "env": {
+        "TOKEN": "xxx"
+      },
+      "type": "stdio"
+    }
+  },
+  "model": "claude-opus-4-6",
+  "outputStyle": "Concise",
+  "permissions": {
+    "allow": [
+      "Bash(git commit *)",
+      "Bash(npm run *)",
+      "Edit(/src/**/*.ts)",
+      "Read",
+      "Task(Explore)",
+      "WebFetch(domain:github.com)",
+      "Write",
+      "mcp__github__search_code"
+    ],
+    "ask": [
+      "Bash(docker *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Read(/etc/passwd)"
+    ]
+  },
+  "respectGitignore": false,
+  "sandbox": {
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "enableWeakerNestedSandbox": false,
+    "enabled": true,
+    "excludedCommands": [
+      "apt-get",
+      "docker"
+    ],
+    "network": {
+      "allowUnixSockets": [
+        "/var/run/docker.sock"
+      ],
+      "allowedDomains": [
+        "*.npmjs.org",
+        "api.example.com",
+        "github.com"
+      ],
+      "httpProxyPort": 8080,
+      "socksProxyPort": 8081
+    }
+  },
+  "spinner": {
+    "enabled": false,
+    "showTips": true
+  },
+  "statusLine": {
+    "command": "echo status",
+    "type": "command"
+  }
+}
