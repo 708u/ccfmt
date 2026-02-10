@@ -263,8 +263,8 @@ func TestRunSingleTarget(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for missing file")
 		}
-		if !strings.Contains(err.Error(), "not found") {
-			t.Errorf("error should mention 'not found': %v", err)
+		if !os.IsNotExist(err) {
+			t.Errorf("expected os.IsNotExist error: %v", err)
 		}
 	})
 }

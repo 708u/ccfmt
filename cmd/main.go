@@ -69,35 +69,40 @@ func isClaudeJSON(path string) bool {
 	return filepath.Base(path) == ".claude.json"
 }
 
+type fileResult struct {
+	path       string
+	stats      *ccfmt.Stats
+	backupPath string
+	skipped    bool
+}
+
 func runAll(cli *CLI, targets []targetFile, checker ccfmt.PathChecker, w io.Writer) error {
-	singleTarget := len(targets) == 1
+	single := len(targets) == 1
 
 	for _, tf := range targets {
-		err := runOne(cli, tf, checker, w, singleTarget)
+		r, err := runOne(cli, tf, checker)
 		if err != nil {
-			return err
+			if single || !os.IsNotExist(err) {
+				return err
+			}
+			fmt.Fprintf(w, "%s: skipped (not found)\n\n", tf.path)
+			continue
 		}
+		printResult(w, r, single)
 	}
 	return nil
 }
 
-func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker, w io.Writer, singleTarget bool) error {
+func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker) (*fileResult, error) {
 	info, err := os.Stat(tf.path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			if singleTarget {
-				return fmt.Errorf("%s not found", tf.path)
-			}
-			fmt.Fprintf(w, "%s: skipped (not found)\n\n", tf.path)
-			return nil
-		}
-		return fmt.Errorf("stat %s: %w", tf.path, err)
+		return nil, err
 	}
 	perm := info.Mode().Perm()
 
 	data, err := os.ReadFile(tf.path)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", tf.path, err)
+		return nil, fmt.Errorf("reading %s: %w", tf.path, err)
 	}
 
 	var result *ccfmt.FormatResult
@@ -108,7 +113,7 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker, w io.Writer, sin
 		result, err = ccfmt.FormatJSON(data)
 	}
 	if err != nil {
-		return fmt.Errorf("formatting %s: %w", tf.path, err)
+		return nil, fmt.Errorf("formatting %s: %w", tf.path, err)
 	}
 
 	var backupPath string
@@ -117,29 +122,35 @@ func runOne(cli *CLI, tf targetFile, checker ccfmt.PathChecker, w io.Writer, sin
 			backupPath = fmt.Sprintf("%s.backup.%s",
 				tf.path, time.Now().Format("20060102150405"))
 			if err := os.WriteFile(backupPath, data, perm); err != nil {
-				return fmt.Errorf("creating backup: %w", err)
+				return nil, fmt.Errorf("creating backup: %w", err)
 			}
 		}
 		if err := os.WriteFile(tf.path, result.Data, perm); err != nil {
-			return fmt.Errorf("writing %s: %w", tf.path, err)
+			return nil, fmt.Errorf("writing %s: %w", tf.path, err)
 		}
 	}
 
-	if !singleTarget {
-		if !result.Stats.Changed() {
-			fmt.Fprintf(w, "%s:\n  (no changes)\n\n", tf.path)
-		} else {
-			fmt.Fprintf(w, "%s:\n", tf.path)
-			for _, line := range splitLines(result.Stats.Summary(backupPath)) {
-				fmt.Fprintf(w, "  %s\n", line)
-			}
-			fmt.Fprintln(w)
-		}
-	} else {
-		fmt.Fprint(w, result.Stats.Summary(backupPath))
-	}
+	return &fileResult{
+		path:       tf.path,
+		stats:      result.Stats,
+		backupPath: backupPath,
+	}, nil
+}
 
-	return nil
+func printResult(w io.Writer, r *fileResult, single bool) {
+	if single {
+		fmt.Fprint(w, r.stats.Summary(r.backupPath))
+		return
+	}
+	if !r.stats.Changed() {
+		fmt.Fprintf(w, "%s:\n  (no changes)\n\n", r.path)
+		return
+	}
+	fmt.Fprintf(w, "%s:\n", r.path)
+	for _, line := range splitLines(r.stats.Summary(r.backupPath)) {
+		fmt.Fprintf(w, "  %s\n", line)
+	}
+	fmt.Fprintln(w)
 }
 
 func splitLines(s string) []string {
