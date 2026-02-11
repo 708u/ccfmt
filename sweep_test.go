@@ -217,7 +217,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Read(//dead/path)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
@@ -234,7 +234,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Read(//alive/path)"},
 			},
 		}
-		result := NewPermissionSweeper(checkerFor("/alive/path")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor("/alive/path"), "").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -251,7 +251,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Read(~/dead/config)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}, WithHomeDir("/home/user")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "/home/user").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
@@ -268,7 +268,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Read(~/config)"},
 			},
 		}
-		result := NewPermissionSweeper(checkerFor("/home/user/config"), WithHomeDir("/home/user")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor("/home/user/config"), "/home/user").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -285,7 +285,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Edit(/src/file.go)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -302,7 +302,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Edit(./src/file.go)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}, WithBaseDir("/project")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "", WithBaseDir("/project")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
@@ -322,7 +322,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Edit(./file.go)"},
 			},
 		}
-		result := NewPermissionSweeper(checkerFor(filepath.Join(dir, "file.go")), WithBaseDir(dir)).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor(filepath.Join(dir, "file.go")), "", WithBaseDir(dir)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -339,7 +339,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Read(**/*.ts)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -359,7 +359,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 2 {
 			t.Errorf("allow should have 2 entries, got %v", allow)
@@ -372,7 +372,7 @@ func TestSweepPermissions(t *testing.T) {
 	t.Run("missing permissions key is no-op", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{"key": "value"}
-		result := NewPermissionSweeper(alwaysTrue{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysTrue{}, "").Sweep(t.Context(), obj)
 		if result.SweptAllow != 0 || result.SweptAsk != 0 {
 			t.Errorf("expected zero counts, got allow=%d ask=%d",
 				result.SweptAllow, result.SweptAsk)
@@ -391,7 +391,7 @@ func TestSweepPermissions(t *testing.T) {
 				"ask":   []any{"Edit(//dead/ask)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
 		if result.SweptAllow != 1 {
 			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}

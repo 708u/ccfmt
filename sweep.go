@@ -103,12 +103,6 @@ type sweepCategory struct {
 	count int
 }
 
-// sweeperConfig collects options before building a PermissionSweeper.
-type sweeperConfig struct {
-	homeDir string
-	baseDir string
-}
-
 // PermissionSweeper sweeps stale permission entries from settings objects.
 // It dispatches to tool-specific ToolSweeper implementations based on the
 // tool name extracted from each entry. Entries for unregistered tools are
@@ -120,33 +114,24 @@ type PermissionSweeper struct {
 }
 
 // SweepOption configures a PermissionSweeper.
-type SweepOption func(*sweeperConfig)
-
-// WithHomeDir sets the home directory for resolving ~/path specifiers.
-func WithHomeDir(dir string) SweepOption {
-	return func(c *sweeperConfig) {
-		c.homeDir = dir
-	}
-}
+type SweepOption func(*ReadEditToolSweeper)
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
 func WithBaseDir(dir string) SweepOption {
-	return func(c *sweeperConfig) {
-		c.baseDir = dir
+	return func(s *ReadEditToolSweeper) {
+		s.baseDir = dir
 	}
 }
 
 // NewPermissionSweeper creates a PermissionSweeper.
-func NewPermissionSweeper(checker PathChecker, opts ...SweepOption) *PermissionSweeper {
-	cfg := &sweeperConfig{}
-	for _, o := range opts {
-		o(cfg)
-	}
-
+// homeDir is required for resolving ~/path specifiers.
+func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOption) *PermissionSweeper {
 	re := &ReadEditToolSweeper{
 		checker: checker,
-		homeDir: cfg.homeDir,
-		baseDir: cfg.baseDir,
+		homeDir: homeDir,
+	}
+	for _, o := range opts {
+		o(re)
 	}
 
 	return &PermissionSweeper{
