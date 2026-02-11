@@ -47,7 +47,7 @@ const (
 //   - glob (*, ?, [)  → skip (kept unchanged)
 //   - //path          → /path  (absolute; always resolvable)
 //   - ~/path          → homeDir/path (requires homeDir)
-//   - /path          → project root relative (requires baseDir)
+//   - /path           → project root relative (requires baseDir)
 //   - ./path, ../path, bare path → cwd relative (requires baseDir)
 type ReadEditToolSweeper struct {
 	checker PathChecker
@@ -95,6 +95,12 @@ type SweepResult struct {
 	SweptAllow int
 	SweptAsk   int
 	Warns      []string
+}
+
+// sweepCategory pairs a permission category key with its counter.
+type sweepCategory struct {
+	key   string
+	count *int
 }
 
 // sweeperConfig collects options before building a PermissionSweeper.
@@ -163,13 +169,9 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 		return result
 	}
 
-	type category struct {
-		key   string
-		count *int
-	}
-	categories := []category{
-		{"allow", &result.SweptAllow},
-		{"ask", &result.SweptAsk},
+	categories := []sweepCategory{
+		{key: "allow", count: &result.SweptAllow},
+		{key: "ask", count: &result.SweptAsk},
 	}
 
 	for _, cat := range categories {
