@@ -16,12 +16,12 @@ func CheckerFor(paths ...string) PathSet {
 	return s
 }
 
-// AlwaysTrue は全パスを存在扱いにする。
-type AlwaysTrue struct{}
+// AllPathsExist は全パスを存在扱いにする PathChecker スタブ。
+type AllPathsExist struct{}
 
-func (AlwaysTrue) Exists(context.Context, string) bool { return true }
+func (AllPathsExist) Exists(context.Context, string) bool { return true }
 
-// AlwaysFalse は全パスを不在扱いにする。
-type AlwaysFalse struct{}
+// NoPathsExist は全パスを不在扱いにする PathChecker スタブ。
+type NoPathsExist struct{}
 
-func (AlwaysFalse) Exists(context.Context, string) bool { return false }
+func (NoPathsExist) Exists(context.Context, string) bool { return false }
