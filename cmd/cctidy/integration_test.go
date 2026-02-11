@@ -675,6 +675,9 @@ func TestIntegrationPrune(t *testing.T) {
       "Bash(git -C ` + deadPath + ` status)",
       "Read",
       "Write"
+    ],
+    "deny": [
+      "Bash(rm -rf ` + deadPath + `)"
     ]
   }
 }`
@@ -693,11 +696,14 @@ func TestIntegrationPrune(t *testing.T) {
 	if !strings.Contains(got, existingPath) {
 		t.Error("existing path entry was removed")
 	}
-	if strings.Contains(got, deadPath) {
-		t.Error("dead path entry was not removed")
+	if strings.Contains(got, `"Bash(git -C `+deadPath) {
+		t.Error("dead path entry in allow was not removed")
 	}
 	if !strings.Contains(got, `"Read"`) {
 		t.Error("non-path entry was removed")
+	}
+	if !strings.Contains(got, `"Bash(rm -rf `+deadPath) {
+		t.Error("deny entry with dead path was incorrectly pruned")
 	}
 
 	output := buf.String()
