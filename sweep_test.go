@@ -375,6 +375,139 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 	}
 }
 
+func TestBashExcluderIsExcluded(t *testing.T) {
+	t.Parallel()
+
+	excl := NewBashExcluder(BashSweepConfig{
+		ExcludeEntries:  []string{"mkdir -p /opt/myapp/logs", "touch /opt/myapp/.initialized"},
+		ExcludeCommands: []string{"mkdir", "touch", "ln"},
+		ExcludePaths:    []string{"/opt/myapp/", "/var/log/myapp/"},
+	})
+
+	tests := []struct {
+		name      string
+		specifier string
+		want      bool
+	}{
+		{
+			name:      "exact entry match",
+			specifier: "mkdir -p /opt/myapp/logs",
+			want:      true,
+		},
+		{
+			name:      "exact entry no match",
+			specifier: "cat /other/path",
+			want:      false,
+		},
+		{
+			name:      "command match mkdir",
+			specifier: "mkdir /some/new/dir",
+			want:      true,
+		},
+		{
+			name:      "command match touch",
+			specifier: "touch /some/file",
+			want:      true,
+		},
+		{
+			name:      "command match ln",
+			specifier: "ln -s /src /dst",
+			want:      true,
+		},
+		{
+			name:      "command no match",
+			specifier: "git -C /dead/repo status",
+			want:      false,
+		},
+		{
+			name:      "path prefix match",
+			specifier: "cat /opt/myapp/config/app.conf",
+			want:      true,
+		},
+		{
+			name:      "path prefix match var log",
+			specifier: "tail /var/log/myapp/error.log",
+			want:      true,
+		},
+		{
+			name:      "path prefix no match",
+			specifier: "cat /opt/otherapp/config",
+			want:      false,
+		},
+		{
+			name:      "no paths no command match",
+			specifier: "npm run build",
+			want:      false,
+		},
+		{
+			name:      "single token command match",
+			specifier: "mkdir",
+			want:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := excl.IsExcluded(tt.specifier); got != tt.want {
+				t.Errorf("IsExcluded(%q) = %v, want %v", tt.specifier, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBashExcluderEmpty(t *testing.T) {
+	t.Parallel()
+	excl := NewBashExcluder(BashSweepConfig{})
+	if excl.IsExcluded("git -C /dead/repo status") {
+		t.Error("empty excluder should not exclude anything")
+	}
+}
+
+func TestBashToolSweeperWithExcluder(t *testing.T) {
+	t.Parallel()
+
+	excl := NewBashExcluder(BashSweepConfig{
+		ExcludeCommands: []string{"mkdir"},
+	})
+
+	tests := []struct {
+		name      string
+		sweeper   BashToolSweeper
+		specifier string
+		wantSweep bool
+	}{
+		{
+			name:      "excluded command keeps entry even with dead paths",
+			sweeper:   BashToolSweeper{checker: testutil.NoPathsExist{}, excluder: excl},
+			specifier: "mkdir -p /dead/path",
+			wantSweep: false,
+		},
+		{
+			name:      "non-excluded command with dead paths is swept",
+			sweeper:   BashToolSweeper{checker: testutil.NoPathsExist{}, excluder: excl},
+			specifier: "git -C /dead/repo status",
+			wantSweep: true,
+		},
+		{
+			name:      "nil excluder does not affect sweeping",
+			sweeper:   BashToolSweeper{checker: testutil.NoPathsExist{}, excluder: nil},
+			specifier: "git -C /dead/repo status",
+			wantSweep: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := tt.sweeper.ShouldSweep(t.Context(), tt.specifier)
+			if result.Sweep != tt.wantSweep {
+				t.Errorf("ShouldSweep(%q) = %v, want %v", tt.specifier, result.Sweep, tt.wantSweep)
+			}
+		})
+	}
+}
+
 func TestReadEditToolSweeperShouldSweep(t *testing.T) {
 	t.Parallel()
 

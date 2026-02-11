@@ -136,16 +136,74 @@ func extractRelativePaths(s string) []string {
 	return paths
 }
 
+// BashExcluder decides whether a Bash permission specifier should be
+// excluded from sweeping (i.e. always kept).
+type BashExcluder struct {
+	entries  map[string]bool
+	commands map[string]bool
+	paths    []string // prefix match
+}
+
+// NewBashExcluder builds a BashExcluder from a BashSweepConfig.
+func NewBashExcluder(cfg BashSweepConfig) *BashExcluder {
+	entries := make(map[string]bool, len(cfg.ExcludeEntries))
+	for _, e := range cfg.ExcludeEntries {
+		entries[e] = true
+	}
+	commands := make(map[string]bool, len(cfg.ExcludeCommands))
+	for _, c := range cfg.ExcludeCommands {
+		commands[c] = true
+	}
+	return &BashExcluder{
+		entries:  entries,
+		commands: commands,
+		paths:    cfg.ExcludePaths,
+	}
+}
+
+// IsExcluded reports whether the specifier matches any exclusion rule.
+// Checks are applied in order: entries (exact), commands (first token),
+// paths (prefix match on extracted absolute paths).
+func (e *BashExcluder) IsExcluded(specifier string) bool {
+	if e.entries[specifier] {
+		return true
+	}
+	if cmd := firstToken(specifier); e.commands[cmd] {
+		return true
+	}
+	for _, p := range extractAbsolutePaths(specifier) {
+		for _, prefix := range e.paths {
+			if strings.HasPrefix(p, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// firstToken returns the first whitespace-delimited token of s.
+func firstToken(s string) string {
+	if i := strings.IndexByte(s, ' '); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
 // BashToolSweeper sweeps Bash permission entries where all
 // resolvable paths in the specifier are non-existent.
 // Entries with no resolvable paths or at least one existing path are kept.
 type BashToolSweeper struct {
-	checker PathChecker
-	homeDir string
-	baseDir string
+	checker  PathChecker
+	homeDir  string
+	baseDir  string
+	excluder *BashExcluder
 }
 
 func (b *BashToolSweeper) ShouldSweep(ctx context.Context, specifier string) ToolSweepResult {
+	if b.excluder != nil && b.excluder.IsExcluded(specifier) {
+		return ToolSweepResult{}
+	}
+
 	absPaths := extractAbsolutePaths(specifier)
 	relPaths := extractRelativePaths(specifier)
 
@@ -212,8 +270,9 @@ type PermissionSweeper struct {
 type SweepOption func(*sweepConfig)
 
 type sweepConfig struct {
-	baseDir   string
-	bashSweep bool
+	baseDir      string
+	bashSweep    bool
+	bashExcluder *BashExcluder
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
@@ -228,6 +287,14 @@ func WithBaseDir(dir string) SweepOption {
 func WithBashSweep() SweepOption {
 	return func(c *sweepConfig) {
 		c.bashSweep = true
+	}
+}
+
+// WithBashExcluder sets the BashExcluder for Bash permission sweeping.
+// Excluded entries are always kept regardless of path existence.
+func WithBashExcluder(excl *BashExcluder) SweepOption {
+	return func(c *sweepConfig) {
+		c.bashExcluder = excl
 	}
 }
 
@@ -249,7 +316,12 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 		ToolRead: re, ToolEdit: re, ToolWrite: re,
 	}
 	if cfg.bashSweep {
-		tools[ToolBash] = &BashToolSweeper{checker: checker, homeDir: homeDir, baseDir: cfg.baseDir}
+		tools[ToolBash] = &BashToolSweeper{
+			checker:  checker,
+			homeDir:  homeDir,
+			baseDir:  cfg.baseDir,
+			excluder: cfg.bashExcluder,
+		}
 	}
 
 	return &PermissionSweeper{tools: tools}

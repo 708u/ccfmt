@@ -26,10 +26,12 @@ type CLI struct {
 	DryRun          bool             `help:"Show changes without writing." name:"dry-run"`
 	Check           bool             `help:"Exit with 1 if any file needs formatting."`
 	IncludeBashTool bool             `help:"Include Bash tool entries in permission sweeping." name:"include-bash-tool"`
+	Config          string           `help:"Path to config file." name:"config"`
 	Verbose         bool             `help:"Show formatting details." short:"v"`
 	Version         kong.VersionFlag `help:"Print version."`
 
 	checker cctidy.PathChecker
+	cfg     *cctidy.Config
 	w       io.Writer
 }
 
@@ -76,6 +78,13 @@ func run() int {
 	kong.Parse(&cli,
 		kong.Vars{"version": version},
 	)
+
+	cfg, err := cctidy.LoadConfig(cli.Config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cctidy: %v\n", err)
+		return 1
+	}
+	cli.cfg = cfg
 
 	if cli.Check && (cli.Backup || cli.DryRun) {
 		fmt.Fprintf(os.Stderr, "cctidy: --check cannot be combined with --backup or --dry-run\n")
@@ -166,15 +175,39 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 	return nil
 }
 
+// bashSweepEnabled reports whether Bash sweeping should be active.
+// CLI flag takes precedence; config enabled is used otherwise.
+func (c *CLI) bashSweepEnabled() bool {
+	if c.IncludeBashTool {
+		return true
+	}
+	if c.cfg != nil && c.cfg.Sweep.Bash.Enabled != nil {
+		return *c.cfg.Sweep.Bash.Enabled
+	}
+	return false
+}
+
+// bashSweepOpts returns SweepOptions for Bash sweeping based on
+// CLI flags and config.
+func (c *CLI) bashSweepOpts() []cctidy.SweepOption {
+	if !c.bashSweepEnabled() {
+		return nil
+	}
+	opts := []cctidy.SweepOption{cctidy.WithBashSweep()}
+	if c.cfg != nil {
+		excl := cctidy.NewBashExcluder(c.cfg.Sweep.Bash)
+		opts = append(opts, cctidy.WithBashExcluder(excl))
+	}
+	return opts
+}
+
 func (c *CLI) resolveTargets(home string) []targetFile {
 	if c.Target == "" {
 		return c.defaultTargets(home)
 	}
 	baseDir := filepath.Dir(filepath.Dir(c.Target))
 	opts := []cctidy.SweepOption{cctidy.WithBaseDir(baseDir)}
-	if c.IncludeBashTool {
-		opts = append(opts, cctidy.WithBashSweep())
-	}
+	opts = append(opts, c.bashSweepOpts()...)
 	sweeper := cctidy.NewPermissionSweeper(c.checker, home, opts...)
 	var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
 	if filepath.Base(c.Target) == ".claude.json" {
@@ -186,12 +219,9 @@ func (c *CLI) resolveTargets(home string) []targetFile {
 func (c *CLI) defaultTargets(home string) []targetFile {
 	cwd, _ := os.Getwd()
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
-	var globalOpts []cctidy.SweepOption
-	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(cwd)}
-	if c.IncludeBashTool {
-		globalOpts = append(globalOpts, cctidy.WithBashSweep())
-		projectOpts = append(projectOpts, cctidy.WithBashSweep())
-	}
+	bashOpts := c.bashSweepOpts()
+	globalOpts := append([]cctidy.SweepOption{}, bashOpts...)
+	projectOpts := append([]cctidy.SweepOption{cctidy.WithBaseDir(cwd)}, bashOpts...)
 	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, home, globalOpts...))
 	projectSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, home, projectOpts...))
 	return []targetFile{
