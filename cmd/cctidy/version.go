@@ -18,6 +18,6 @@ func versionString() string {
 	fmt.Fprintf(w, "Version:\t%s\n", version)
 	fmt.Fprintf(w, "Commit:\t%s\n", commit)
 	fmt.Fprintf(w, "Built:\t%s\n", buildTime)
-	w.Flush()
+	_ = w.Flush()
 	return buf.String()
 }
