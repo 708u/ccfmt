@@ -48,19 +48,19 @@ func (s *ClaudeJSONFormatterStats) Summary() string {
 
 // SettingsJSONFormatterStats holds statistics for settings.json formatting.
 type SettingsJSONFormatterStats struct {
-	SizeBefore  int
-	SizeAfter   int
-	PrunedAllow int
-	PrunedAsk   int
-	Warns       []string
+	SizeBefore int
+	SizeAfter  int
+	SweptAllow int
+	SweptAsk   int
+	Warns      []string
 }
 
 func (s *SettingsJSONFormatterStats) Summary() string {
 	var b strings.Builder
-	pruned := s.PrunedAllow + s.PrunedAsk
-	if pruned > 0 {
-		fmt.Fprintf(&b, "Pruned: %d allow, %d ask entries\n",
-			s.PrunedAllow, s.PrunedAsk)
+	swept := s.SweptAllow + s.SweptAsk
+	if swept > 0 {
+		fmt.Fprintf(&b, "Swept: %d allow, %d ask entries\n",
+			s.SweptAllow, s.SweptAsk)
 	}
 	for _, w := range s.Warns {
 		fmt.Fprintf(&b, "Skipped: %s\n", w)
@@ -201,13 +201,13 @@ func (c *claudeJSONData) cleanGitHubRepoPaths(ctx context.Context, stats *Claude
 
 // SettingsJSONFormatter formats settings.json / settings.local.json
 // by sorting keys recursively and sorting homogeneous arrays.
-// When Pruner is provided, dead permission paths are pruned.
+// When Sweeper is provided, dead permission paths are swept.
 type SettingsJSONFormatter struct {
-	Pruner *PermissionPruner
+	Sweeper *PermissionSweeper
 }
 
-func NewSettingsJSONFormatter(pruner *PermissionPruner) *SettingsJSONFormatter {
-	return &SettingsJSONFormatter{Pruner: pruner}
+func NewSettingsJSONFormatter(sweeper *PermissionSweeper) *SettingsJSONFormatter {
+	return &SettingsJSONFormatter{Sweeper: sweeper}
 }
 
 func (s *SettingsJSONFormatter) Format(ctx context.Context, data []byte) (*FormatResult, error) {
@@ -218,10 +218,10 @@ func (s *SettingsJSONFormatter) Format(ctx context.Context, data []byte) (*Forma
 
 	stats := &SettingsJSONFormatterStats{SizeBefore: len(data)}
 
-	pr := s.Pruner.Prune(ctx, obj)
-	stats.PrunedAllow = pr.PrunedAllow
-	stats.PrunedAsk = pr.PrunedAsk
-	stats.Warns = pr.Warns
+	sr := s.Sweeper.Sweep(ctx, obj)
+	stats.SweptAllow = sr.SweptAllow
+	stats.SweptAsk = sr.SweptAsk
+	stats.Warns = sr.Warns
 
 	sortArraysRecursive(obj)
 

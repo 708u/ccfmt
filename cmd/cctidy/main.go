@@ -36,8 +36,8 @@ type Formatter interface {
 	Format(context.Context, []byte) (*cctidy.FormatResult, error)
 }
 
-type Pruner interface {
-	Prune(context.Context, map[string]any) *cctidy.PruneResult
+type Sweeper interface {
+	Sweep(context.Context, map[string]any) *cctidy.SweepResult
 }
 
 type targetFile struct {
@@ -168,8 +168,8 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 func (c *CLI) resolveTargets(home string) []targetFile {
 	if c.Target != "" {
 		baseDir := filepath.Dir(filepath.Dir(c.Target))
-		pruner := cctidy.NewPermissionPruner(c.checker, cctidy.WithHomeDir(home), cctidy.WithBaseDir(baseDir))
-		var f Formatter = cctidy.NewSettingsJSONFormatter(pruner)
+		sweeper := cctidy.NewPermissionSweeper(c.checker, cctidy.WithHomeDir(home), cctidy.WithBaseDir(baseDir))
+		var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
 		if filepath.Base(c.Target) == ".claude.json" {
 			f = cctidy.NewClaudeJSONFormatter(c.checker)
 		}
@@ -181,8 +181,8 @@ func (c *CLI) resolveTargets(home string) []targetFile {
 func (c *CLI) defaultTargets(home string) []targetFile {
 	cwd, _ := os.Getwd()
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
-	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(c.checker, cctidy.WithHomeDir(home)))
-	projectSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(c.checker, cctidy.WithHomeDir(home), cctidy.WithBaseDir(cwd)))
+	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, cctidy.WithHomeDir(home)))
+	projectSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, cctidy.WithHomeDir(home), cctidy.WithBaseDir(cwd)))
 	return []targetFile{
 		{path: filepath.Join(home, ".claude.json"), formatter: claude},
 		{path: filepath.Join(home, ".claude", "settings.json"), formatter: globalSettings},

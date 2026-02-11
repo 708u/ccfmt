@@ -64,7 +64,7 @@ func TestSettingsGolden(t *testing.T) {
 		t.Fatalf("reading input: %v", err)
 	}
 
-	result, err := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysFalse{})).Format(t.Context(), input)
+	result, err := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysFalse{})).Format(t.Context(), input)
 	if err != nil {
 		t.Fatalf("format: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestRunMultipleTargets(t *testing.T) {
 		cli := &CLI{Verbose: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
 			{path: claudeJSON, formatter: cctidy.NewClaudeJSONFormatter(alwaysTrue{})},
-			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		if err := cli.runTargets(t.Context(), targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -350,7 +350,7 @@ func TestRunMultipleTargets(t *testing.T) {
 		cli := &CLI{Verbose: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
 			{path: claudeJSON, formatter: cctidy.NewClaudeJSONFormatter(alwaysTrue{})},
-			{path: missingFile, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: missingFile, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		if err := cli.runTargets(t.Context(), targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -373,8 +373,8 @@ func TestRunMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{Verbose: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
-			{path: filepath.Join(dir, "missing.json"), formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
+			{path: filepath.Join(dir, "missing.json"), formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		if err := cli.runTargets(t.Context(), targets); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -516,8 +516,8 @@ func TestCheckMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
-			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		if err := cli.runTargets(t.Context(), targets); err != nil {
 			t.Fatalf("expected nil, got: %v", err)
@@ -537,8 +537,8 @@ func TestCheckMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
-			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		err := cli.runTargets(t.Context(), targets)
 		if !errors.Is(err, errUnformatted) {
@@ -557,8 +557,8 @@ func TestCheckMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{Check: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
-			{path: missing, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
+			{path: missing, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		if err := cli.runTargets(t.Context(), targets); err != nil {
 			t.Fatalf("expected nil, got: %v", err)
@@ -578,8 +578,8 @@ func TestCheckMultipleTargets(t *testing.T) {
 		var buf bytes.Buffer
 		cli := &CLI{Check: true, Verbose: true, checker: alwaysTrue{}, w: &buf}
 		targets := []targetFile{
-			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
-			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionPruner(alwaysTrue{}))},
+			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
+			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(alwaysTrue{}))},
 		}
 		cli.runTargets(t.Context(), targets)
 
@@ -664,7 +664,7 @@ func TestResolveTargets(t *testing.T) {
 	})
 }
 
-func TestIntegrationPrune(t *testing.T) {
+func TestIntegrationSweep(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
@@ -707,16 +707,16 @@ func TestIntegrationPrune(t *testing.T) {
 		t.Error("non-path entry was removed")
 	}
 	if !strings.Contains(got, `"Bash(rm -rf `+deadPath) {
-		t.Error("deny entry with dead path was incorrectly pruned")
+		t.Error("deny entry with dead path was incorrectly swept")
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "Pruned:") {
-		t.Errorf("expected pruned stats in output: %s", output)
+	if !strings.Contains(output, "Swept:") {
+		t.Errorf("expected swept stats in output: %s", output)
 	}
 }
 
-func TestPruneCheck(t *testing.T) {
+func TestSweepCheck(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	deadPath := filepath.Join(dir, "gone-project")
@@ -739,7 +739,7 @@ func TestPruneCheck(t *testing.T) {
 	}
 }
 
-func TestPruneDryRun(t *testing.T) {
+func TestSweepDryRun(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	deadPath := filepath.Join(dir, "gone-project")

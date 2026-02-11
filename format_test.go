@@ -233,7 +233,7 @@ func TestSettingsJSONFormatter(t *testing.T) {
 			want:    "{\n  \"a\": {\n    \"c\": 3,\n    \"d\": 4\n  },\n  \"z\": {\n    \"a\": 1,\n    \"b\": 2\n  }\n}\n",
 		},
 		{
-			name:    "prune dead permission paths",
+			name:    "sweep dead permission paths",
 			input:   `{"permissions":{"allow":["Read(//dead/path)","Read"]}}`,
 			checker: checkerFor(),
 			want:    "{\n  \"permissions\": {\n    \"allow\": [\n      \"Read\"\n    ]\n  }\n}\n",
@@ -245,7 +245,7 @@ func TestSettingsJSONFormatter(t *testing.T) {
 			want:    "{\n  \"permissions\": {\n    \"allow\": [\n      \"Read\",\n      \"Read(//alive/path)\"\n    ]\n  }\n}\n",
 		},
 		{
-			name:    "prune allow and ask but keep deny",
+			name:    "sweep allow and ask but keep deny",
 			input:   `{"permissions":{"allow":["Read(//dead/a)"],"deny":["Read(//dead/b)"],"ask":["Edit(//dead/c)"]}}`,
 			checker: checkerFor(),
 			want:    "{\n  \"permissions\": {\n    \"allow\": [],\n    \"ask\": [],\n    \"deny\": [\n      \"Read(//dead/b)\"\n    ]\n  }\n}\n",
@@ -255,7 +255,7 @@ func TestSettingsJSONFormatter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := NewSettingsJSONFormatter(NewPermissionPruner(tt.checker)).Format(t.Context(), []byte(tt.input))
+			result, err := NewSettingsJSONFormatter(NewPermissionSweeper(tt.checker)).Format(t.Context(), []byte(tt.input))
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -276,7 +276,7 @@ func TestSettingsJSONFormatter(t *testing.T) {
 func TestSettingsJSONFormatterDoesNotAddProjects(t *testing.T) {
 	t.Parallel()
 	input := `{"key": "value"}`
-	result, err := NewSettingsJSONFormatter(NewPermissionPruner(alwaysTrue{})).Format(t.Context(), []byte(input))
+	result, err := NewSettingsJSONFormatter(NewPermissionSweeper(alwaysTrue{})).Format(t.Context(), []byte(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

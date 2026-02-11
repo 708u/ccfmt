@@ -98,116 +98,116 @@ func TestContainsGlob(t *testing.T) {
 	}
 }
 
-func TestReadEditToolPrunerShouldPrune(t *testing.T) {
+func TestReadEditToolSweeperShouldSweep(t *testing.T) {
 	t.Parallel()
 
 	t.Run("absolute path with // prefix is resolved", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{checker: alwaysFalse{}}
-		result := p.ShouldPrune(t.Context(), "//dead/path")
-		if !result.Prune {
-			t.Error("should prune non-existent absolute path")
+		p := &ReadEditToolSweeper{checker: alwaysFalse{}}
+		result := p.ShouldSweep(t.Context(), "//dead/path")
+		if !result.Sweep {
+			t.Error("should sweep non-existent absolute path")
 		}
 	})
 
 	t.Run("existing absolute path is kept", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{checker: checkerFor("/alive/path")}
-		result := p.ShouldPrune(t.Context(), "//alive/path")
-		if result.Prune {
-			t.Error("should not prune existing absolute path")
+		p := &ReadEditToolSweeper{checker: checkerFor("/alive/path")}
+		result := p.ShouldSweep(t.Context(), "//alive/path")
+		if result.Sweep {
+			t.Error("should not sweep existing absolute path")
 		}
 	})
 
 	t.Run("home-relative path with homeDir is resolved", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{
+		p := &ReadEditToolSweeper{
 			checker: alwaysFalse{},
 			homeDir: "/home/user",
 		}
-		result := p.ShouldPrune(t.Context(), "~/config.json")
-		if !result.Prune {
-			t.Error("should prune non-existent home-relative path")
+		result := p.ShouldSweep(t.Context(), "~/config.json")
+		if !result.Sweep {
+			t.Error("should sweep non-existent home-relative path")
 		}
 	})
 
 	t.Run("existing home-relative path is kept", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{
+		p := &ReadEditToolSweeper{
 			checker: checkerFor("/home/user/config.json"),
 			homeDir: "/home/user",
 		}
-		result := p.ShouldPrune(t.Context(), "~/config.json")
-		if result.Prune {
-			t.Error("should not prune existing home-relative path")
+		result := p.ShouldSweep(t.Context(), "~/config.json")
+		if result.Sweep {
+			t.Error("should not sweep existing home-relative path")
 		}
 	})
 
 	t.Run("home-relative path without homeDir is skipped", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{checker: alwaysFalse{}}
-		result := p.ShouldPrune(t.Context(), "~/config.json")
-		if result.Prune {
+		p := &ReadEditToolSweeper{checker: alwaysFalse{}}
+		result := p.ShouldSweep(t.Context(), "~/config.json")
+		if result.Sweep {
 			t.Error("should skip home-relative path without homeDir")
 		}
 	})
 
 	t.Run("relative path with baseDir is resolved", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{
+		p := &ReadEditToolSweeper{
 			checker: alwaysFalse{},
 			baseDir: "/project",
 		}
-		result := p.ShouldPrune(t.Context(), "./src/main.go")
-		if !result.Prune {
-			t.Error("should prune non-existent relative path")
+		result := p.ShouldSweep(t.Context(), "./src/main.go")
+		if !result.Sweep {
+			t.Error("should sweep non-existent relative path")
 		}
 	})
 
 	t.Run("relative path without baseDir is skipped", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{checker: alwaysFalse{}}
-		result := p.ShouldPrune(t.Context(), "./src/main.go")
-		if result.Prune {
+		p := &ReadEditToolSweeper{checker: alwaysFalse{}}
+		result := p.ShouldSweep(t.Context(), "./src/main.go")
+		if result.Sweep {
 			t.Error("should skip relative path without baseDir")
 		}
 	})
 
 	t.Run("glob pattern is skipped", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{checker: alwaysFalse{}}
-		result := p.ShouldPrune(t.Context(), "**/*.ts")
-		if result.Prune {
+		p := &ReadEditToolSweeper{checker: alwaysFalse{}}
+		result := p.ShouldSweep(t.Context(), "**/*.ts")
+		if result.Sweep {
 			t.Error("should skip glob pattern")
 		}
 	})
 
 	t.Run("parent-relative path with baseDir is resolved", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{
+		p := &ReadEditToolSweeper{
 			checker: alwaysFalse{},
 			baseDir: "/project",
 		}
-		result := p.ShouldPrune(t.Context(), "../other/file.go")
-		if !result.Prune {
-			t.Error("should prune non-existent parent-relative path")
+		result := p.ShouldSweep(t.Context(), "../other/file.go")
+		if !result.Sweep {
+			t.Error("should sweep non-existent parent-relative path")
 		}
 	})
 
 	t.Run("slash-prefixed path with baseDir is resolved", func(t *testing.T) {
 		t.Parallel()
-		p := &ReadEditToolPruner{
+		p := &ReadEditToolSweeper{
 			checker: checkerFor("/project/src/file.go"),
 			baseDir: "/project",
 		}
-		result := p.ShouldPrune(t.Context(), "/src/file.go")
-		if result.Prune {
-			t.Error("should not prune existing path resolved with baseDir")
+		result := p.ShouldSweep(t.Context(), "/src/file.go")
+		if result.Sweep {
+			t.Error("should not sweep existing path resolved with baseDir")
 		}
 	})
 }
 
-func TestPrunePermissions(t *testing.T) {
+func TestSweepPermissions(t *testing.T) {
 	t.Parallel()
 
 	t.Run("dead absolute path entry is removed", func(t *testing.T) {
@@ -217,13 +217,13 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Read(//dead/path)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
 		}
-		if result.PrunedAllow != 1 {
-			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
+		if result.SweptAllow != 1 {
+			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}
 	})
 
@@ -234,30 +234,30 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Read(//alive/path)"},
 			},
 		}
-		result := NewPermissionPruner(checkerFor("/alive/path")).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor("/alive/path")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
-	t.Run("home-relative path with homeDir is pruned when dead", func(t *testing.T) {
+	t.Run("home-relative path with homeDir is swept when dead", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
 				"allow": []any{"Read(~/dead/config)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}, WithHomeDir("/home/user")).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, WithHomeDir("/home/user")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
 		}
-		if result.PrunedAllow != 1 {
-			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
+		if result.SweptAllow != 1 {
+			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}
 	})
 
@@ -268,13 +268,13 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Read(~/config)"},
 			},
 		}
-		result := NewPermissionPruner(checkerFor("/home/user/config"), WithHomeDir("/home/user")).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor("/home/user/config"), WithHomeDir("/home/user")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
@@ -285,30 +285,30 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Edit(/src/file.go)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
-	t.Run("relative path with baseDir is pruned when dead", func(t *testing.T) {
+	t.Run("relative path with baseDir is swept when dead", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
 				"allow": []any{"Edit(./src/file.go)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}, WithBaseDir("/project")).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}, WithBaseDir("/project")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow should be empty, got %v", allow)
 		}
-		if result.PrunedAllow != 1 {
-			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
+		if result.SweptAllow != 1 {
+			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}
 	})
 
@@ -322,13 +322,13 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Edit(./file.go)"},
 			},
 		}
-		result := NewPermissionPruner(checkerFor(filepath.Join(dir, "file.go")), WithBaseDir(dir)).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(checkerFor(filepath.Join(dir, "file.go")), WithBaseDir(dir)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
@@ -339,13 +339,13 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Read(**/*.ts)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
@@ -359,30 +359,30 @@ func TestPrunePermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
+		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 2 {
 			t.Errorf("allow should have 2 entries, got %v", allow)
 		}
-		if result.PrunedAllow != 0 {
-			t.Errorf("PrunedAllow = %d, want 0", result.PrunedAllow)
+		if result.SweptAllow != 0 {
+			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
 		}
 	})
 
 	t.Run("missing permissions key is no-op", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{"key": "value"}
-		result := NewPermissionPruner(alwaysTrue{}).Prune(t.Context(), obj)
-		if result.PrunedAllow != 0 || result.PrunedAsk != 0 {
+		result := NewPermissionSweeper(alwaysTrue{}).Sweep(t.Context(), obj)
+		if result.SweptAllow != 0 || result.SweptAsk != 0 {
 			t.Errorf("expected zero counts, got allow=%d ask=%d",
-				result.PrunedAllow, result.PrunedAsk)
+				result.SweptAllow, result.SweptAsk)
 		}
 		if len(result.Warns) != 0 {
 			t.Errorf("expected no warnings, got %v", result.Warns)
 		}
 	})
 
-	t.Run("deny entries are never pruned", func(t *testing.T) {
+	t.Run("deny entries are never swept", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -391,12 +391,12 @@ func TestPrunePermissions(t *testing.T) {
 				"ask":   []any{"Edit(//dead/ask)"},
 			},
 		}
-		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
-		if result.PrunedAllow != 1 {
-			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
+		result := NewPermissionSweeper(alwaysFalse{}).Sweep(t.Context(), obj)
+		if result.SweptAllow != 1 {
+			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}
-		if result.PrunedAsk != 1 {
-			t.Errorf("PrunedAsk = %d, want 1", result.PrunedAsk)
+		if result.SweptAsk != 1 {
+			t.Errorf("SweptAsk = %d, want 1", result.SweptAsk)
 		}
 		deny := obj["permissions"].(map[string]any)["deny"].([]any)
 		if len(deny) != 1 {

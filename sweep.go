@@ -19,16 +19,16 @@ func extractToolEntry(entry string) (toolName, specifier string) {
 	return m[1], m[2]
 }
 
-// ToolPruneResult holds the result of a single tool pruner evaluation.
+// ToolSweepResult holds the result of a single tool sweeper evaluation.
 // When Warn is non-empty the entry is kept and the warning is recorded.
-type ToolPruneResult struct {
-	Prune bool
+type ToolSweepResult struct {
+	Sweep bool
 	Warn  string
 }
 
-// ToolPruner decides whether a specifier for a specific tool should be pruned.
-type ToolPruner interface {
-	ShouldPrune(ctx context.Context, specifier string) ToolPruneResult
+// ToolSweeper decides whether a specifier for a specific tool should be swept.
+type ToolSweeper interface {
+	ShouldSweep(ctx context.Context, specifier string) ToolSweepResult
 }
 
 // ToolName identifies a Claude Code tool for permission matching.
@@ -40,7 +40,7 @@ const (
 	ToolWrite ToolName = "Write"
 )
 
-// ReadEditToolPruner prunes Read/Edit/Write permission entries
+// ReadEditToolSweeper sweeps Read/Edit/Write permission entries
 // that reference non-existent paths.
 //
 // Specifier resolution rules:
@@ -49,7 +49,7 @@ const (
 //   - ~/path          → homeDir/path (requires homeDir)
 //   - /path          → project root relative (requires baseDir)
 //   - ./path, ../path, bare path → cwd relative (requires baseDir)
-type ReadEditToolPruner struct {
+type ReadEditToolSweeper struct {
 	checker PathChecker
 	homeDir string
 	baseDir string
@@ -60,9 +60,9 @@ func containsGlob(s string) bool {
 	return strings.ContainsAny(s, "*?[")
 }
 
-func (r *ReadEditToolPruner) ShouldPrune(ctx context.Context, specifier string) ToolPruneResult {
+func (r *ReadEditToolSweeper) ShouldSweep(ctx context.Context, specifier string) ToolSweepResult {
 	if containsGlob(specifier) {
-		return ToolPruneResult{}
+		return ToolSweepResult{}
 	}
 
 	var resolved string
@@ -71,88 +71,88 @@ func (r *ReadEditToolPruner) ShouldPrune(ctx context.Context, specifier string) 
 		resolved = specifier[1:]
 	case strings.HasPrefix(specifier, "~/"):
 		if r.homeDir == "" {
-			return ToolPruneResult{}
+			return ToolSweepResult{}
 		}
 		resolved = filepath.Join(r.homeDir, specifier[2:])
 	default: // /path, ./path, ../path, bare path — all project-relative
 		if r.baseDir == "" {
-			return ToolPruneResult{}
+			return ToolSweepResult{}
 		}
 		resolved = filepath.Join(r.baseDir, specifier)
 	}
 
 	if !r.checker.Exists(ctx, resolved) {
-		return ToolPruneResult{Prune: true}
+		return ToolSweepResult{Sweep: true}
 	}
-	return ToolPruneResult{}
+	return ToolSweepResult{}
 }
 
-// PruneResult holds statistics from permission pruning.
-// Deny entries are intentionally excluded from pruning because they represent
+// SweepResult holds statistics from permission sweeping.
+// Deny entries are intentionally excluded from sweeping because they represent
 // explicit user prohibitions; removing stale deny rules costs nothing but
 // could silently re-enable a previously blocked action.
-type PruneResult struct {
-	PrunedAllow int
-	PrunedAsk   int
-	Warns       []string
+type SweepResult struct {
+	SweptAllow int
+	SweptAsk   int
+	Warns      []string
 }
 
-// prunerConfig collects options before building a PermissionPruner.
-type prunerConfig struct {
+// sweeperConfig collects options before building a PermissionSweeper.
+type sweeperConfig struct {
 	homeDir string
 	baseDir string
 }
 
-// PermissionPruner prunes stale permission entries from settings objects.
-// It dispatches to tool-specific ToolPruner implementations based on the
+// PermissionSweeper sweeps stale permission entries from settings objects.
+// It dispatches to tool-specific ToolSweeper implementations based on the
 // tool name extracted from each entry. Entries for unregistered tools are
 // kept unchanged.
 //
 // Ref: https://code.claude.com/docs/en/permissions#permission-rule-syntax
-type PermissionPruner struct {
-	tools map[ToolName]ToolPruner
+type PermissionSweeper struct {
+	tools map[ToolName]ToolSweeper
 }
 
-// PruneOption configures a PermissionPruner.
-type PruneOption func(*prunerConfig)
+// SweepOption configures a PermissionSweeper.
+type SweepOption func(*sweeperConfig)
 
 // WithHomeDir sets the home directory for resolving ~/path specifiers.
-func WithHomeDir(dir string) PruneOption {
-	return func(c *prunerConfig) {
+func WithHomeDir(dir string) SweepOption {
+	return func(c *sweeperConfig) {
 		c.homeDir = dir
 	}
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
-func WithBaseDir(dir string) PruneOption {
-	return func(c *prunerConfig) {
+func WithBaseDir(dir string) SweepOption {
+	return func(c *sweeperConfig) {
 		c.baseDir = dir
 	}
 }
 
-// NewPermissionPruner creates a PermissionPruner.
-func NewPermissionPruner(checker PathChecker, opts ...PruneOption) *PermissionPruner {
-	cfg := &prunerConfig{}
+// NewPermissionSweeper creates a PermissionSweeper.
+func NewPermissionSweeper(checker PathChecker, opts ...SweepOption) *PermissionSweeper {
+	cfg := &sweeperConfig{}
 	for _, o := range opts {
 		o(cfg)
 	}
 
-	re := &ReadEditToolPruner{
+	re := &ReadEditToolSweeper{
 		checker: checker,
 		homeDir: cfg.homeDir,
 		baseDir: cfg.baseDir,
 	}
 
-	return &PermissionPruner{
-		tools: map[ToolName]ToolPruner{
+	return &PermissionSweeper{
+		tools: map[ToolName]ToolSweeper{
 			ToolRead: re, ToolEdit: re, ToolWrite: re,
 		},
 	}
 }
 
-// Prune removes stale allow/ask permission entries from obj.
-func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *PruneResult {
-	result := &PruneResult{}
+// Sweep removes stale allow/ask permission entries from obj.
+func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *SweepResult {
+	result := &SweepResult{}
 
 	raw, ok := obj["permissions"]
 	if !ok {
@@ -168,8 +168,8 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 		count *int
 	}
 	categories := []category{
-		{"allow", &result.PrunedAllow},
-		{"ask", &result.PrunedAsk},
+		{"allow", &result.SweptAllow},
+		{"ask", &result.SweptAsk},
 	}
 
 	for _, cat := range categories {
@@ -190,7 +190,7 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 				continue
 			}
 
-			if p.shouldPrune(ctx, entry, result) {
+			if p.shouldSweep(ctx, entry, result) {
 				*cat.count++
 				continue
 			}
@@ -203,21 +203,21 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 	return result
 }
 
-func (p *PermissionPruner) shouldPrune(ctx context.Context, entry string, result *PruneResult) bool {
+func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) bool {
 	toolName, specifier := extractToolEntry(entry)
 	if toolName == "" {
 		return false
 	}
 
-	pruner, ok := p.tools[ToolName(toolName)]
+	sweeper, ok := p.tools[ToolName(toolName)]
 	if !ok {
 		return false
 	}
 
-	r := pruner.ShouldPrune(ctx, specifier)
+	r := sweeper.ShouldSweep(ctx, specifier)
 	if r.Warn != "" {
 		result.Warns = append(result.Warns, entry)
 		return false
 	}
-	return r.Prune
+	return r.Sweep
 }
