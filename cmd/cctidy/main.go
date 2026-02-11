@@ -166,16 +166,16 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 }
 
 func (c *CLI) resolveTargets(home string) []targetFile {
-	if c.Target != "" {
-		baseDir := filepath.Dir(filepath.Dir(c.Target))
-		sweeper := cctidy.NewPermissionSweeper(c.checker, home, cctidy.WithBaseDir(baseDir))
-		var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
-		if filepath.Base(c.Target) == ".claude.json" {
-			f = cctidy.NewClaudeJSONFormatter(c.checker)
-		}
-		return []targetFile{{path: c.Target, formatter: f}}
+	if c.Target == "" {
+		return c.defaultTargets(home)
 	}
-	return c.defaultTargets(home)
+	baseDir := filepath.Dir(filepath.Dir(c.Target))
+	sweeper := cctidy.NewPermissionSweeper(c.checker, home, cctidy.WithBaseDir(baseDir))
+	var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
+	if filepath.Base(c.Target) == ".claude.json" {
+		f = cctidy.NewClaudeJSONFormatter(c.checker)
+	}
+	return []targetFile{{path: c.Target, formatter: f}}
 }
 
 func (c *CLI) defaultTargets(home string) []targetFile {
