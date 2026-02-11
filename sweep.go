@@ -192,12 +192,12 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 				continue
 			}
 
-			if p.shouldSweep(ctx, entry, result) {
-				categories[i].count++
+			if !p.shouldSweep(ctx, entry, result) {
+				kept = append(kept, v)
 				continue
 			}
 
-			kept = append(kept, v)
+			categories[i].count++
 		}
 		perms[cat.key] = kept
 	}
