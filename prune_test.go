@@ -80,9 +80,24 @@ func TestExtractRelativePaths(t *testing.T) {
 		want  []string
 	}{
 		{
-			name:  "relative path present",
+			name:  "relative path with dot-slash",
 			entry: "Bash(./ccfmt:*)",
 			want:  []string{"./ccfmt"},
+		},
+		{
+			name:  "relative path with dot-dot-slash",
+			entry: "Bash(../other-project/run)",
+			want:  []string{"../other-project/run"},
+		},
+		{
+			name:  "nested relative path",
+			entry: "Bash(./src/bin/tool)",
+			want:  []string{"./src/bin/tool"},
+		},
+		{
+			name:  "multiple relative paths",
+			entry: "Bash(cp ./a ./b)",
+			want:  []string{"./a", "./b"},
 		},
 		{
 			name:  "no relative path",

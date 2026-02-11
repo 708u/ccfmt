@@ -8,7 +8,7 @@ import (
 )
 
 var absPathRe = regexp.MustCompile(`(?:^|[\s=(])(/[^\s"'):*]+)`)
-var relPathRe = regexp.MustCompile(`\./[^\s"'):*]+`)
+var relPathRe = regexp.MustCompile(`\.\.?/[^\s"'):*]+`)
 
 // ExtractAbsolutePaths extracts all absolute paths from a permission entry string.
 func ExtractAbsolutePaths(entry string) []string {
