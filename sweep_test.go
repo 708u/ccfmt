@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/708u/cctidy/internal/testutil"
 )
 
 func TestExtractToolEntry(t *testing.T) {
@@ -109,61 +111,61 @@ func TestReadEditToolSweeperShouldSweep(t *testing.T) {
 	}{
 		{
 			name:      "absolute path with // prefix is resolved",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}},
 			specifier: "//dead/path",
 			wantSweep: true,
 		},
 		{
 			name:      "existing absolute path is kept",
-			sweeper:   ReadEditToolSweeper{checker: checkerFor("/alive/path")},
+			sweeper:   ReadEditToolSweeper{checker: testutil.CheckerFor("/alive/path")},
 			specifier: "//alive/path",
 			wantSweep: false,
 		},
 		{
 			name:      "home-relative path with homeDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}, homeDir: "/home/user"},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, homeDir: "/home/user"},
 			specifier: "~/config.json",
 			wantSweep: true,
 		},
 		{
 			name:      "existing home-relative path is kept",
-			sweeper:   ReadEditToolSweeper{checker: checkerFor("/home/user/config.json"), homeDir: "/home/user"},
+			sweeper:   ReadEditToolSweeper{checker: testutil.CheckerFor("/home/user/config.json"), homeDir: "/home/user"},
 			specifier: "~/config.json",
 			wantSweep: false,
 		},
 		{
 			name:      "home-relative path without homeDir is skipped",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}},
 			specifier: "~/config.json",
 			wantSweep: false,
 		},
 		{
 			name:      "relative path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}, baseDir: "/project"},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, baseDir: "/project"},
 			specifier: "./src/main.go",
 			wantSweep: true,
 		},
 		{
 			name:      "relative path without baseDir is skipped",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}},
 			specifier: "./src/main.go",
 			wantSweep: false,
 		},
 		{
 			name:      "glob pattern is skipped",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}},
 			specifier: "**/*.ts",
 			wantSweep: false,
 		},
 		{
 			name:      "parent-relative path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: alwaysFalse{}, baseDir: "/project"},
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, baseDir: "/project"},
 			specifier: "../other/file.go",
 			wantSweep: true,
 		},
 		{
 			name:      "slash-prefixed path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: checkerFor("/project/src/file.go"), baseDir: "/project"},
+			sweeper:   ReadEditToolSweeper{checker: testutil.CheckerFor("/project/src/file.go"), baseDir: "/project"},
 			specifier: "/src/file.go",
 			wantSweep: false,
 		},
@@ -195,21 +197,21 @@ func TestSweepPermissions(t *testing.T) {
 		{
 			name:           "dead absolute path entry is removed",
 			entries:        []any{"Read(//dead/path)"},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			wantAllowLen:   0,
 			wantSweptAllow: 1,
 		},
 		{
 			name:           "existing absolute path entry is kept",
 			entries:        []any{"Read(//alive/path)"},
-			checker:        checkerFor("/alive/path"),
+			checker:        testutil.CheckerFor("/alive/path"),
 			wantAllowLen:   1,
 			wantSweptAllow: 0,
 		},
 		{
 			name:           "home-relative path with homeDir is swept when dead",
 			entries:        []any{"Read(~/dead/config)"},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			homeDir:        "/home/user",
 			wantAllowLen:   0,
 			wantSweptAllow: 1,
@@ -217,7 +219,7 @@ func TestSweepPermissions(t *testing.T) {
 		{
 			name:           "home-relative path with homeDir is kept when exists",
 			entries:        []any{"Read(~/config)"},
-			checker:        checkerFor("/home/user/config"),
+			checker:        testutil.CheckerFor("/home/user/config"),
 			homeDir:        "/home/user",
 			wantAllowLen:   1,
 			wantSweptAllow: 0,
@@ -225,14 +227,14 @@ func TestSweepPermissions(t *testing.T) {
 		{
 			name:           "relative path without baseDir is kept",
 			entries:        []any{"Edit(/src/file.go)"},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			wantAllowLen:   1,
 			wantSweptAllow: 0,
 		},
 		{
 			name:           "relative path with baseDir is swept when dead",
 			entries:        []any{"Edit(./src/file.go)"},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			opts:           []SweepOption{WithBaseDir("/project")},
 			wantAllowLen:   0,
 			wantSweptAllow: 1,
@@ -240,7 +242,7 @@ func TestSweepPermissions(t *testing.T) {
 		{
 			name:           "glob pattern entry is kept",
 			entries:        []any{"Read(**/*.ts)"},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			wantAllowLen:   1,
 			wantSweptAllow: 0,
 		},
@@ -250,7 +252,7 @@ func TestSweepPermissions(t *testing.T) {
 				"Bash(git -C /dead/path status)",
 				"WebFetch(domain:example.com)",
 			},
-			checker:        alwaysFalse{},
+			checker:        testutil.NoPathsExist{},
 			wantAllowLen:   2,
 			wantSweptAllow: 0,
 		},
@@ -285,7 +287,7 @@ func TestSweepPermissions(t *testing.T) {
 				"allow": []any{"Edit(./file.go)"},
 			},
 		}
-		result := NewPermissionSweeper(checkerFor(filepath.Join(dir, "file.go")), "", WithBaseDir(dir)).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.CheckerFor(filepath.Join(dir, "file.go")), "", WithBaseDir(dir)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow should have 1 entry, got %v", allow)
@@ -298,7 +300,7 @@ func TestSweepPermissions(t *testing.T) {
 	t.Run("missing permissions key is no-op", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{"key": "value"}
-		result := NewPermissionSweeper(alwaysTrue{}, "").Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.AllPathsExist{}, "").Sweep(t.Context(), obj)
 		if result.SweptAllow != 0 || result.SweptAsk != 0 {
 			t.Errorf("expected zero counts, got allow=%d ask=%d",
 				result.SweptAllow, result.SweptAsk)
@@ -317,7 +319,7 @@ func TestSweepPermissions(t *testing.T) {
 				"ask":   []any{"Edit(//dead/ask)"},
 			},
 		}
-		result := NewPermissionSweeper(alwaysFalse{}, "").Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "").Sweep(t.Context(), obj)
 		if result.SweptAllow != 1 {
 			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
 		}
