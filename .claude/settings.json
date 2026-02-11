@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(~/.claude.json)",
+      "Read(~/.claude/settings.json)",
+      "Read(~/.claude/settings.local.json)"
+    ]
+  }
+}
