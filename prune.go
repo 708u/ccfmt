@@ -31,6 +31,15 @@ type ToolPruner interface {
 	ShouldPrune(ctx context.Context, specifier string) ToolPruneResult
 }
 
+// ToolName identifies a Claude Code tool for permission matching.
+type ToolName string
+
+const (
+	ToolRead  ToolName = "Read"
+	ToolEdit  ToolName = "Edit"
+	ToolWrite ToolName = "Write"
+)
+
 // ReadEditToolPruner prunes Read/Edit/Write permission entries
 // that reference non-existent paths.
 //
@@ -38,7 +47,8 @@ type ToolPruner interface {
 //   - glob (*, ?, [)  → skip (kept unchanged)
 //   - //path          → /path  (absolute; always resolvable)
 //   - ~/path          → homeDir/path (requires homeDir)
-//   - ./path, path, /path → baseDir/path (requires baseDir)
+//   - /path          → project root relative (requires baseDir)
+//   - ./path, ../path, bare path → cwd relative (requires baseDir)
 type ReadEditToolPruner struct {
 	checker PathChecker
 	homeDir string
@@ -64,7 +74,7 @@ func (r *ReadEditToolPruner) ShouldPrune(ctx context.Context, specifier string) 
 			return ToolPruneResult{}
 		}
 		resolved = filepath.Join(r.homeDir, specifier[2:])
-	default:
+	default: // /path, ./path, ../path, bare path — all project-relative
 		if r.baseDir == "" {
 			return ToolPruneResult{}
 		}
@@ -97,9 +107,10 @@ type prunerConfig struct {
 // It dispatches to tool-specific ToolPruner implementations based on the
 // tool name extracted from each entry. Entries for unregistered tools are
 // kept unchanged.
+//
+// Ref: https://code.claude.com/docs/en/permissions#permission-rule-syntax
 type PermissionPruner struct {
-	tools  map[string]ToolPruner
-	result *PruneResult
+	tools map[ToolName]ToolPruner
 }
 
 // PruneOption configures a PermissionPruner.
@@ -133,23 +144,23 @@ func NewPermissionPruner(checker PathChecker, opts ...PruneOption) *PermissionPr
 	}
 
 	return &PermissionPruner{
-		tools: map[string]ToolPruner{
-			"Read": re, "Edit": re, "Write": re,
+		tools: map[ToolName]ToolPruner{
+			ToolRead: re, ToolEdit: re, ToolWrite: re,
 		},
 	}
 }
 
 // Prune removes stale allow/ask permission entries from obj.
 func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *PruneResult {
-	p.result = &PruneResult{}
+	result := &PruneResult{}
 
 	raw, ok := obj["permissions"]
 	if !ok {
-		return p.result
+		return result
 	}
 	perms, ok := raw.(map[string]any)
 	if !ok {
-		return p.result
+		return result
 	}
 
 	type category struct {
@@ -157,8 +168,8 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 		count *int
 	}
 	categories := []category{
-		{"allow", &p.result.PrunedAllow},
-		{"ask", &p.result.PrunedAsk},
+		{"allow", &result.PrunedAllow},
+		{"ask", &result.PrunedAsk},
 	}
 
 	for _, cat := range categories {
@@ -179,7 +190,7 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 				continue
 			}
 
-			if p.shouldPrune(ctx, entry) {
+			if p.shouldPrune(ctx, entry, result) {
 				*cat.count++
 				continue
 			}
@@ -189,24 +200,24 @@ func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *Prune
 		perms[cat.key] = kept
 	}
 
-	return p.result
+	return result
 }
 
-func (p *PermissionPruner) shouldPrune(ctx context.Context, entry string) bool {
+func (p *PermissionPruner) shouldPrune(ctx context.Context, entry string, result *PruneResult) bool {
 	toolName, specifier := extractToolEntry(entry)
 	if toolName == "" {
 		return false
 	}
 
-	pruner, ok := p.tools[toolName]
+	pruner, ok := p.tools[ToolName(toolName)]
 	if !ok {
 		return false
 	}
 
-	result := pruner.ShouldPrune(ctx, specifier)
-	if result.Warn != "" {
-		p.result.Warns = append(p.result.Warns, entry)
+	r := pruner.ShouldPrune(ctx, specifier)
+	if r.Warn != "" {
+		result.Warns = append(result.Warns, entry)
 		return false
 	}
-	return result.Prune
+	return r.Prune
 }

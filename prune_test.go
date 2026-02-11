@@ -182,6 +182,18 @@ func TestReadEditToolPrunerShouldPrune(t *testing.T) {
 		}
 	})
 
+	t.Run("parent-relative path with baseDir is resolved", func(t *testing.T) {
+		t.Parallel()
+		p := &ReadEditToolPruner{
+			checker: alwaysFalse{},
+			baseDir: "/project",
+		}
+		result := p.ShouldPrune(t.Context(), "../other/file.go")
+		if !result.Prune {
+			t.Error("should prune non-existent parent-relative path")
+		}
+	})
+
 	t.Run("slash-prefixed path with baseDir is resolved", func(t *testing.T) {
 		t.Parallel()
 		p := &ReadEditToolPruner{
