@@ -33,9 +33,11 @@ func ExtractRelativePaths(entry string) []string {
 }
 
 // PruneResult holds statistics from permission pruning.
+// Deny entries are intentionally excluded from pruning because they represent
+// explicit user prohibitions; removing stale deny rules costs nothing but
+// could silently re-enable a previously blocked action.
 type PruneResult struct {
 	PrunedAllow   int
-	PrunedDeny    int
 	PrunedAsk     int
 	RelativeWarns []string
 }
@@ -58,7 +60,6 @@ func prunePermissions(ctx context.Context, obj map[string]any, checker PathCheck
 	}
 	categories := []category{
 		{"allow", &result.PrunedAllow},
-		{"deny", &result.PrunedDeny},
 		{"ask", &result.PrunedAsk},
 	}
 

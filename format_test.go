@@ -245,10 +245,10 @@ func TestSettingsJSONFormatter(t *testing.T) {
 			want:    "{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(git -C /alive/path status)\",\n      \"Read\"\n    ]\n  }\n}\n",
 		},
 		{
-			name:    "prune across allow deny ask",
+			name:    "prune allow and ask but keep deny",
 			input:   `{"permissions":{"allow":["Bash(git -C /dead/a status)"],"deny":["Read(/dead/b)"],"ask":["Write(/dead/c)"]}}`,
 			checker: checkerFor(),
-			want:    "{\n  \"permissions\": {\n    \"allow\": [],\n    \"ask\": [],\n    \"deny\": []\n  }\n}\n",
+			want:    "{\n  \"permissions\": {\n    \"allow\": [],\n    \"ask\": [],\n    \"deny\": [\n      \"Read(/dead/b)\"\n    ]\n  }\n}\n",
 		},
 	}
 

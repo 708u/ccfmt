@@ -51,17 +51,16 @@ type SettingsJSONFormatterStats struct {
 	SizeBefore    int
 	SizeAfter     int
 	PrunedAllow   int
-	PrunedDeny    int
 	PrunedAsk     int
 	RelativeWarns []string
 }
 
 func (s *SettingsJSONFormatterStats) Summary() string {
 	var b strings.Builder
-	pruned := s.PrunedAllow + s.PrunedDeny + s.PrunedAsk
+	pruned := s.PrunedAllow + s.PrunedAsk
 	if pruned > 0 {
-		fmt.Fprintf(&b, "Pruned: %d allow, %d deny, %d ask entries\n",
-			s.PrunedAllow, s.PrunedDeny, s.PrunedAsk)
+		fmt.Fprintf(&b, "Pruned: %d allow, %d ask entries\n",
+			s.PrunedAllow, s.PrunedAsk)
 	}
 	for _, w := range s.RelativeWarns {
 		fmt.Fprintf(&b, "Relative path (skipped): %s\n", w)
@@ -222,7 +221,6 @@ func (s *SettingsJSONFormatter) Format(ctx context.Context, data []byte) (*Forma
 
 	pr := prunePermissions(ctx, obj, s.PathChecker, s.BaseDir)
 	stats.PrunedAllow = pr.PrunedAllow
-	stats.PrunedDeny = pr.PrunedDeny
 	stats.PrunedAsk = pr.PrunedAsk
 	stats.RelativeWarns = pr.RelativeWarns
 

@@ -225,16 +225,16 @@ func TestPrunePermissions(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{"key": "value"}
 		result := prunePermissions(t.Context(), obj, alwaysTrue{}, "")
-		if result.PrunedAllow != 0 || result.PrunedDeny != 0 || result.PrunedAsk != 0 {
-			t.Errorf("expected zero counts, got allow=%d deny=%d ask=%d",
-				result.PrunedAllow, result.PrunedDeny, result.PrunedAsk)
+		if result.PrunedAllow != 0 || result.PrunedAsk != 0 {
+			t.Errorf("expected zero counts, got allow=%d ask=%d",
+				result.PrunedAllow, result.PrunedAsk)
 		}
 		if len(result.RelativeWarns) != 0 {
 			t.Errorf("expected no warnings, got %v", result.RelativeWarns)
 		}
 	})
 
-	t.Run("all three categories", func(t *testing.T) {
+	t.Run("deny entries are never pruned", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -247,11 +247,13 @@ func TestPrunePermissions(t *testing.T) {
 		if result.PrunedAllow != 1 {
 			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
 		}
-		if result.PrunedDeny != 1 {
-			t.Errorf("PrunedDeny = %d, want 1", result.PrunedDeny)
-		}
 		if result.PrunedAsk != 1 {
 			t.Errorf("PrunedAsk = %d, want 1", result.PrunedAsk)
+		}
+		perms := obj["permissions"].(map[string]any)
+		deny := perms["deny"].([]any)
+		if len(deny) != 1 {
+			t.Errorf("deny should be kept unchanged, got %v", deny)
 		}
 	})
 }
