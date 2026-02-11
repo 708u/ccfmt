@@ -42,16 +42,48 @@ type PruneResult struct {
 	RelativeWarns []string
 }
 
-func prunePermissions(ctx context.Context, obj map[string]any, checker PathChecker, baseDir string) *PruneResult {
-	result := &PruneResult{}
+// PermissionPruner prunes stale permission entries from settings objects.
+// By default only absolute paths are evaluated. Use WithBaseDir to enable
+// relative path resolution; without it, entries containing relative paths
+// are kept unchanged and recorded in PruneResult.RelativeWarns.
+type PermissionPruner struct {
+	checker        PathChecker
+	baseDir        string
+	resolveRelPath bool
+	result         *PruneResult
+}
+
+// PruneOption configures a PermissionPruner.
+type PruneOption func(*PermissionPruner)
+
+// WithBaseDir enables relative path resolution against the given directory.
+func WithBaseDir(dir string) PruneOption {
+	return func(p *PermissionPruner) {
+		p.baseDir = dir
+		p.resolveRelPath = true
+	}
+}
+
+// NewPermissionPruner creates a PermissionPruner.
+func NewPermissionPruner(checker PathChecker, opts ...PruneOption) *PermissionPruner {
+	p := &PermissionPruner{checker: checker}
+	for _, o := range opts {
+		o(p)
+	}
+	return p
+}
+
+// Prune removes stale allow/ask permission entries from obj.
+func (p *PermissionPruner) Prune(ctx context.Context, obj map[string]any) *PruneResult {
+	p.result = &PruneResult{}
 
 	raw, ok := obj["permissions"]
 	if !ok {
-		return result
+		return p.result
 	}
 	perms, ok := raw.(map[string]any)
 	if !ok {
-		return result
+		return p.result
 	}
 
 	type category struct {
@@ -59,8 +91,8 @@ func prunePermissions(ctx context.Context, obj map[string]any, checker PathCheck
 		count *int
 	}
 	categories := []category{
-		{"allow", &result.PrunedAllow},
-		{"ask", &result.PrunedAsk},
+		{"allow", &p.result.PrunedAllow},
+		{"ask", &p.result.PrunedAsk},
 	}
 
 	for _, cat := range categories {
@@ -81,7 +113,7 @@ func prunePermissions(ctx context.Context, obj map[string]any, checker PathCheck
 				continue
 			}
 
-			if shouldPrune(ctx, entry, checker, baseDir, result) {
+			if p.shouldPrune(ctx, entry) {
 				*cat.count++
 				continue
 			}
@@ -91,25 +123,27 @@ func prunePermissions(ctx context.Context, obj map[string]any, checker PathCheck
 		perms[cat.key] = kept
 	}
 
-	return result
+	return p.result
 }
 
-func shouldPrune(ctx context.Context, entry string, checker PathChecker, baseDir string, result *PruneResult) bool {
+func (p *PermissionPruner) shouldPrune(ctx context.Context, entry string) bool {
 	absPaths := ExtractAbsolutePaths(entry)
 	if len(absPaths) > 0 {
-		return !slices.ContainsFunc(absPaths, func(p string) bool {
-			return checker.Exists(ctx, p)
+		return !slices.ContainsFunc(absPaths, func(path string) bool {
+			return p.checker.Exists(ctx, path)
 		})
 	}
 
 	relPaths := ExtractRelativePaths(entry)
 	if len(relPaths) > 0 {
-		if baseDir == "" {
-			result.RelativeWarns = append(result.RelativeWarns, entry)
+		// Without WithBaseDir, relative paths cannot be resolved.
+		// Keep the entry and record it as a warning.
+		if !p.resolveRelPath {
+			p.result.RelativeWarns = append(p.result.RelativeWarns, entry)
 			return false
 		}
-		return !slices.ContainsFunc(relPaths, func(p string) bool {
-			return checker.Exists(ctx, filepath.Join(baseDir, p))
+		return !slices.ContainsFunc(relPaths, func(path string) bool {
+			return p.checker.Exists(ctx, filepath.Join(p.baseDir, path))
 		})
 	}
 

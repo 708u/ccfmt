@@ -117,7 +117,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(git -C /Users/foo/repo status)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, alwaysFalse{}, "")
+		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 0 {
@@ -135,7 +135,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(git -C /Users/foo/repo status)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, checkerFor("/Users/foo/repo"), "")
+		result := NewPermissionPruner(checkerFor("/Users/foo/repo")).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 1 {
@@ -153,7 +153,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(npm run *)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, alwaysFalse{}, "")
+		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 1 {
@@ -171,7 +171,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(./ccfmt:*)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, alwaysFalse{}, "")
+		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 1 {
@@ -189,7 +189,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(./ccfmt:*)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, alwaysFalse{}, "/project")
+		result := NewPermissionPruner(alwaysFalse{}, WithBaseDir("/project")).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 0 {
@@ -210,7 +210,7 @@ func TestPrunePermissions(t *testing.T) {
 				"allow": []any{"Bash(./ccfmt:*)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, checkerFor(filepath.Join(dir, "ccfmt")), dir)
+		result := NewPermissionPruner(checkerFor(filepath.Join(dir, "ccfmt")), WithBaseDir(dir)).Prune(t.Context(), obj)
 		perms := obj["permissions"].(map[string]any)
 		allow := perms["allow"].([]any)
 		if len(allow) != 1 {
@@ -224,7 +224,7 @@ func TestPrunePermissions(t *testing.T) {
 	t.Run("missing permissions key is no-op", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{"key": "value"}
-		result := prunePermissions(t.Context(), obj, alwaysTrue{}, "")
+		result := NewPermissionPruner(alwaysTrue{}).Prune(t.Context(), obj)
 		if result.PrunedAllow != 0 || result.PrunedAsk != 0 {
 			t.Errorf("expected zero counts, got allow=%d ask=%d",
 				result.PrunedAllow, result.PrunedAsk)
@@ -243,7 +243,7 @@ func TestPrunePermissions(t *testing.T) {
 				"ask":   []any{"Bash(git -C /dead/ask status)"},
 			},
 		}
-		result := prunePermissions(t.Context(), obj, alwaysFalse{}, "")
+		result := NewPermissionPruner(alwaysFalse{}).Prune(t.Context(), obj)
 		if result.PrunedAllow != 1 {
 			t.Errorf("PrunedAllow = %d, want 1", result.PrunedAllow)
 		}
