@@ -32,7 +32,10 @@
       "Write(../dead.go)",
       "Read(**/*.ts)",
       "Bash(git -C /dead/worktree status)",
-      "Bash(git -C /alive/repo pull)"
+      "Bash(git -C /alive/repo pull)",
+      "Bash(./bin/run --project)",
+      "Bash(../scripts/deploy.sh)",
+      "Bash(cat ~/config.json)"
     ]
   },
   "sandbox": {
