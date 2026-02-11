@@ -112,9 +112,8 @@ func extractAbsolutePaths(s string) []string {
 		// The regex may include a leading non-path char from the
 		// lookbehind alternative; trim to the first '/'.
 		idx := strings.IndexByte(m, '/')
-		m = m[idx:]
-		cleaned := strings.TrimRight(m, "/.")
-		if cleaned == "" || cleaned == "/" {
+		cleaned := filepath.Clean(m[idx:])
+		if cleaned == "/" {
 			continue
 		}
 		paths = append(paths, cleaned)
@@ -127,7 +126,7 @@ func extractRelativePaths(s string) []string {
 	matches := relPathRe.FindAllStringSubmatch(s, -1)
 	var paths []string
 	for _, m := range matches {
-		cleaned := strings.TrimRight(m[1], "/.")
+		cleaned := strings.TrimRight(m[1], "/")
 		if cleaned == "" {
 			continue
 		}
@@ -154,10 +153,14 @@ func NewBashExcluder(cfg BashSweepConfig) *BashExcluder {
 	for _, c := range cfg.ExcludeCommands {
 		commands[c] = true
 	}
+	paths := make([]string, len(cfg.ExcludePaths))
+	for i, p := range cfg.ExcludePaths {
+		paths[i] = filepath.Clean(p)
+	}
 	return &BashExcluder{
 		entries:  entries,
 		commands: commands,
-		paths:    cfg.ExcludePaths,
+		paths:    paths,
 	}
 }
 
@@ -172,9 +175,12 @@ func (e *BashExcluder) IsExcluded(specifier string, absPaths []string) bool {
 	if e.commands[cmd] {
 		return true
 	}
-	for _, p := range absPaths {
+	for _, absPath := range absPaths {
 		for _, prefix := range e.paths {
-			if strings.HasPrefix(p, prefix) {
+			// absPath is under prefix when the relative path
+			// stays local (no ".." escape).
+			rel, err := filepath.Rel(prefix, absPath)
+			if err == nil && filepath.IsLocal(rel) {
 				return true
 			}
 		}
@@ -265,7 +271,7 @@ type SweepOption func(*sweepConfig)
 type sweepConfig struct {
 	baseDir      string
 	bashSweep    bool
-	bashExcluder *BashExcluder
+	bashSweepCfg BashSweepConfig
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
@@ -276,18 +282,13 @@ func WithBaseDir(dir string) SweepOption {
 }
 
 // WithBashSweep enables sweeping of Bash permission entries whose
-// absolute paths are all non-existent.
-func WithBashSweep() SweepOption {
+// absolute paths are all non-existent. The optional BashSweepConfig
+// specifies exclusion patterns; entries matching any pattern are
+// always kept regardless of path existence.
+func WithBashSweep(cfg BashSweepConfig) SweepOption {
 	return func(c *sweepConfig) {
 		c.bashSweep = true
-	}
-}
-
-// WithBashExcluder sets the BashExcluder for Bash permission sweeping.
-// Excluded entries are always kept regardless of path existence.
-func WithBashExcluder(excl *BashExcluder) SweepOption {
-	return func(c *sweepConfig) {
-		c.bashExcluder = excl
+		c.bashSweepCfg = cfg
 	}
 }
 
@@ -309,15 +310,11 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 		ToolRead: re, ToolEdit: re, ToolWrite: re,
 	}
 	if cfg.bashSweep {
-		excl := cfg.bashExcluder
-		if excl == nil {
-			excl = NewBashExcluder(BashSweepConfig{})
-		}
 		tools[ToolBash] = &BashToolSweeper{
 			checker:  checker,
 			homeDir:  homeDir,
 			baseDir:  cfg.baseDir,
-			excluder: excl,
+			excluder: NewBashExcluder(cfg.bashSweepCfg),
 		}
 	}
 

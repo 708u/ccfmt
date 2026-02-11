@@ -148,9 +148,9 @@ func TestExtractAbsolutePaths(t *testing.T) {
 			want:  []string{"/some/dir"},
 		},
 		{
-			name:  "trailing dot trimmed",
+			name:  "trailing dot preserved",
 			input: "ls /some/path.",
-			want:  []string{"/some/path"},
+			want:  []string{"/some/path."},
 		},
 		{
 			name:  "root only path filtered",
@@ -238,9 +238,9 @@ func TestExtractRelativePaths(t *testing.T) {
 			want:  []string{"./dir"},
 		},
 		{
-			name:  "trailing dot trimmed",
+			name:  "trailing dot preserved",
 			input: "ls ./path.",
-			want:  []string{"./path"},
+			want:  []string{"./path."},
 		},
 		{
 			name:  "equals-prefixed dot-slash",
@@ -437,6 +437,16 @@ func TestBashExcluderIsExcluded(t *testing.T) {
 			want:      false,
 		},
 		{
+			name:      "path prefix boundary no match",
+			specifier: "cat /opt/myappdata/file",
+			want:      false,
+		},
+		{
+			name:      "path exact match",
+			specifier: "cat /opt/myapp/",
+			want:      true,
+		},
+		{
 			name:      "no paths no command match",
 			specifier: "npm run build",
 			want:      false,
@@ -448,6 +458,42 @@ func TestBashExcluderIsExcluded(t *testing.T) {
 		},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := excl.IsExcluded(tt.specifier, extractAbsolutePaths(tt.specifier)); got != tt.want {
+				t.Errorf("IsExcluded(%q) = %v, want %v", tt.specifier, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBashExcluderPathBoundary(t *testing.T) {
+	t.Parallel()
+	excl := NewBashExcluder(BashSweepConfig{
+		ExcludePaths: []string{"/home/user"},
+	})
+	tests := []struct {
+		name      string
+		specifier string
+		want      bool
+	}{
+		{
+			name:      "exact path",
+			specifier: "cat /home/user",
+			want:      true,
+		},
+		{
+			name:      "subpath",
+			specifier: "cat /home/user/file",
+			want:      true,
+		},
+		{
+			name:      "similar prefix different dir",
+			specifier: "cat /home/username/file",
+			want:      false,
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -731,7 +777,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep()).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep(BashSweepConfig{})).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 2 {
 			t.Errorf("allow len = %d, want 2, got %v", len(allow), allow)
@@ -750,7 +796,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.CheckerFor("/alive/src"), "", WithBashSweep()).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.CheckerFor("/alive/src"), "", WithBashSweep(BashSweepConfig{})).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow len = %d, want 1, got %v", len(allow), allow)
@@ -788,7 +834,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "/home/user", WithBashSweep()).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "/home/user", WithBashSweep(BashSweepConfig{})).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow len = %d, want 0, got %v", len(allow), allow)
@@ -807,7 +853,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep(), WithBaseDir("/project")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep(BashSweepConfig{}), WithBaseDir("/project")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow len = %d, want 0, got %v", len(allow), allow)
@@ -826,7 +872,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep()).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", WithBashSweep(BashSweepConfig{})).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow len = %d, want 1, got %v", len(allow), allow)
