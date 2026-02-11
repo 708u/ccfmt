@@ -113,6 +113,7 @@
   "outputStyle": "Concise",
   "permissions": {
     "allow": [
+      "Bash(git -C /alive/repo pull)",
       "Bash(git commit *)",
       "Bash(npm run *)",
       "Edit(./src/dead.go)",

@@ -30,7 +30,9 @@
       "Read(~/dead/config.json)",
       "Edit(./src/dead.go)",
       "Write(../dead.go)",
-      "Read(**/*.ts)"
+      "Read(**/*.ts)",
+      "Bash(git -C /dead/worktree status)",
+      "Bash(git -C /alive/repo pull)"
     ]
   },
   "sandbox": {
