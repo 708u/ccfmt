@@ -1,6 +1,7 @@
 package cctidy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -164,10 +165,11 @@ func NewMCPToolSweeper(servers MCPServerSet, excluder *MCPExcluder) *MCPToolSwee
 	return &MCPToolSweeper{servers: servers, excluder: excluder}
 }
 
-// ShouldSweepTool decides whether a tool name should be swept.
+// ShouldSweep implements ToolSweeper. The specifier is the full
+// MCP tool name (e.g. "mcp__slack__post_message").
 // Returns Sweep=true when the server is not in the known set
 // and not excluded.
-func (m *MCPToolSweeper) ShouldSweepTool(toolName string) ToolSweepResult {
+func (m *MCPToolSweeper) ShouldSweep(_ context.Context, toolName string) ToolSweepResult {
 	serverName, ok := extractMCPServerName(toolName)
 	if !ok {
 		return ToolSweepResult{}

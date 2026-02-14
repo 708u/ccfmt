@@ -351,7 +351,7 @@ func TestMCPToolSweeper(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := tt.sweeper.ShouldSweepTool(tt.toolName)
+			result := tt.sweeper.ShouldSweep(t.Context(), tt.toolName)
 			if result.Sweep != tt.wantSweep {
 				t.Errorf("ShouldSweepTool(%q) = %v, want %v", tt.toolName, result.Sweep, tt.wantSweep)
 			}

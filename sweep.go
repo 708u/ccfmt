@@ -52,6 +52,7 @@ const (
 	ToolEdit  ToolName = "Edit"
 	ToolWrite ToolName = "Write"
 	ToolBash  ToolName = "Bash"
+	ToolMCP   ToolName = "mcp"
 )
 
 // ReadEditToolSweeper sweeps Read/Edit/Write permission entries
@@ -262,8 +263,7 @@ type sweepCategory struct {
 //
 // Ref: https://code.claude.com/docs/en/permissions#permission-rule-syntax
 type PermissionSweeper struct {
-	tools      map[ToolName]ToolSweeper
-	mcpSweeper *MCPToolSweeper // nil when MCP sweep is disabled
+	tools map[ToolName]ToolSweeper
 }
 
 // SweepOption configures a PermissionSweeper.
@@ -330,15 +330,14 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 		}
 	}
 
-	var mcpSweeper *MCPToolSweeper
 	if cfg.mcpSweepCfg != nil {
-		mcpSweeper = NewMCPToolSweeper(
+		tools[ToolMCP] = NewMCPToolSweeper(
 			cfg.mcpServers,
 			NewMCPExcluder(cfg.mcpSweepCfg.ExcludeServers),
 		)
 	}
 
-	return &PermissionSweeper{tools: tools, mcpSweeper: mcpSweeper}
+	return &PermissionSweeper{tools: tools}
 }
 
 // Sweep removes stale allow/ask permission entries from obj.
@@ -390,7 +389,8 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) bool {
 	toolName, specifier := extractToolEntry(entry)
 
-	// MCP dispatch: bare entry (no parens) or entry with parens
+	// MCP dispatch: bare entry (no parens) or entry with parens.
+	// MCP tool name is passed as specifier to the ToolMCP sweeper.
 	mcpName := ""
 	if toolName != "" && strings.HasPrefix(toolName, "mcp__") {
 		mcpName = toolName
@@ -398,18 +398,10 @@ func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, resul
 		mcpName = entry
 	}
 	if mcpName != "" {
-		if p.mcpSweeper == nil {
-			return false
-		}
-		r := p.mcpSweeper.ShouldSweepTool(mcpName)
-		if r.Warn != "" {
-			result.Warns = append(result.Warns, entry)
-			return false
-		}
-		return r.Sweep
+		toolName = string(ToolMCP)
+		specifier = mcpName
 	}
 
-	// Existing tools map dispatch
 	if toolName == "" {
 		return false
 	}
