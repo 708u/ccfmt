@@ -61,13 +61,13 @@ brew install 708u/tap/cctidy
 Linux / macOS:
 
 ```bash
-curl -sSfL https://raw.githubusercontent.com/708u/cctidy/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/708u/cctidy/main/scripts/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/708u/cctidy/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/708u/cctidy/main/scripts/install.ps1 | iex
 ```
 
 ### Go
