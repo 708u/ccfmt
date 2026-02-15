@@ -8,15 +8,15 @@ silently re-enable a previously blocked action.
 
 ## Supported Tools
 
-| Tool  | Default  |
-| ----- | -------- |
-| Read  | enabled  |
-| Edit  | enabled  |
-| Bash  | disabled |
-| Task  | enabled  |
-| MCP   | enabled  |
+| Tool  | Tier   | Default  |
+| ----- | ------ | -------- |
+| Read  | safe   | enabled  |
+| Edit  | safe   | enabled  |
+| Bash  | unsafe | disabled |
+| Task  | safe   | enabled  |
+| MCP   | safe   | enabled  |
 
-Bash sweeping requires `--sweep-bash` flag or
+Bash sweeping requires `--unsafe` flag or
 `enabled = true` in the config file.
 See [CLI Reference](cli.md#configuration-file)
 for config details.
@@ -25,6 +25,21 @@ Entries for tools not listed above (e.g. `Write`,
 `WebFetch`, `Grep`) are kept unchanged. Write entries
 are excluded because the tool creates new files, so
 the target path not existing is expected.
+
+## Safety Tiers
+
+Sweepers are classified as safe or unsafe:
+
+- **Safe**: Run unconditionally on every invocation
+- **Unsafe**: Require `--unsafe` flag or config opt-in
+
+Bash sweeping is the only unsafe sweeper. It uses
+path extraction heuristics that may produce false
+positives.
+
+Config `[sweep.bash] enabled = true` promotes Bash
+to safe tier (always active without `--unsafe`).
+See [CLI Reference](cli.md#configuration-file).
 
 ## Read / Edit
 
@@ -56,7 +71,8 @@ The following entries are always kept:
 
 ## Bash
 
-Enabled with `--sweep-bash`.
+Enabled with `--unsafe` flag or
+`[sweep.bash] enabled = true` in config.
 
 Bash entries have the form `Bash(command string)`.
 The sweeper extracts all paths from the command and
