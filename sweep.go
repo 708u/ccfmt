@@ -377,7 +377,6 @@ type SweepOption func(*sweepConfig)
 type sweepConfig struct {
 	baseDir      string
 	unsafe       bool
-	bashSweep    bool
 	bashSafe     bool
 	bashSweepCfg BashSweepConfig
 }
@@ -389,13 +388,11 @@ func WithBaseDir(dir string) SweepOption {
 	}
 }
 
-// WithBashSweep enables sweeping of Bash permission entries whose
-// absolute paths are all non-existent. The optional BashSweepConfig
-// specifies exclusion patterns; entries matching any pattern are
-// always kept regardless of path existence.
-func WithBashSweep(cfg BashSweepConfig) SweepOption {
+// WithBashConfig sets the BashSweepConfig for exclusion patterns.
+// Bash sweeping is always registered as Unsafe tier; use
+// WithBashSweepSafe to promote it to Safe tier.
+func WithBashConfig(cfg BashSweepConfig) SweepOption {
 	return func(c *sweepConfig) {
-		c.bashSweep = true
 		c.bashSweepCfg = cfg
 	}
 }
@@ -440,24 +437,23 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	}
 	task := NewTaskToolSweeper(LoadAgentNames(agentsDir))
 
+	bash := &BashToolSweeper{
+		checker:  checker,
+		homeDir:  homeDir,
+		baseDir:  cfg.baseDir,
+		excluder: NewBashExcluder(cfg.bashSweepCfg),
+	}
+	bashSafety := Unsafe
+	if cfg.bashSafe {
+		bashSafety = Safe
+	}
+
 	tools := map[ToolName]toolEntry{
 		ToolRead: {sweeper: NewToolSweeper(re.ShouldSweep), safety: Safe},
 		ToolEdit: {sweeper: NewToolSweeper(re.ShouldSweep), safety: Safe},
+		ToolBash: {sweeper: NewToolSweeper(bash.ShouldSweep), safety: bashSafety},
 		ToolMCP:  {sweeper: NewToolSweeper(mcp.ShouldSweep), safety: Safe},
 		ToolTask: {sweeper: NewToolSweeper(task.ShouldSweep), safety: Safe},
-	}
-	if cfg.bashSweep {
-		bash := &BashToolSweeper{
-			checker:  checker,
-			homeDir:  homeDir,
-			baseDir:  cfg.baseDir,
-			excluder: NewBashExcluder(cfg.bashSweepCfg),
-		}
-		safety := Unsafe
-		if cfg.bashSafe {
-			safety = Safe
-		}
-		tools[ToolBash] = toolEntry{sweeper: NewToolSweeper(bash.ShouldSweep), safety: safety}
 	}
 
 	return &PermissionSweeper{tools: tools, unsafe: cfg.unsafe}

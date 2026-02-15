@@ -186,19 +186,18 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 	return nil
 }
 
-// bashSweepConfig returns the BashSweepConfig, whether Bash sweeping
-// is active, and whether it should be classified as safe tier.
-func (c *CLI) bashSweepConfig() (cfg cctidy.BashSweepConfig, active bool, safe bool) {
+// bashSweepOpts returns SweepOptions for Bash sweep configuration.
+// Bash is always registered as Unsafe tier in the sweeper;
+// these options set exclude patterns and optionally promote to Safe tier.
+func (c *CLI) bashSweepOpts() []cctidy.SweepOption {
 	if c.cfg == nil {
-		return cctidy.BashSweepConfig{}, c.Unsafe, false
+		return nil
 	}
-	if c.Unsafe {
-		return c.cfg.Sweep.Bash, true, c.cfg.Sweep.Bash.Enabled
-	}
+	opts := []cctidy.SweepOption{cctidy.WithBashConfig(c.cfg.Sweep.Bash)}
 	if c.cfg.Sweep.Bash.Enabled {
-		return c.cfg.Sweep.Bash, true, true
+		opts = append(opts, cctidy.WithBashSweepSafe())
 	}
-	return cctidy.BashSweepConfig{}, false, false
+	return opts
 }
 
 func (c *CLI) resolveTargets() []targetFile {
@@ -214,12 +213,7 @@ func (c *CLI) resolveTargets() []targetFile {
 		baseDir := filepath.Dir(filepath.Dir(c.Target))
 		opts = append(opts, cctidy.WithBaseDir(baseDir))
 	}
-	if bashCfg, ok, safe := c.bashSweepConfig(); ok {
-		opts = append(opts, cctidy.WithBashSweep(bashCfg))
-		if safe {
-			opts = append(opts, cctidy.WithBashSweepSafe())
-		}
-	}
+	opts = append(opts, c.bashSweepOpts()...)
 	if c.Unsafe {
 		opts = append(opts, cctidy.WithUnsafe())
 	}
@@ -275,16 +269,9 @@ func (c *CLI) defaultTargets() []targetFile {
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
 	var globalOpts []cctidy.SweepOption
 	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(projectRoot)}
-	if bashCfg, ok, safe := c.bashSweepConfig(); ok {
-		bashOpt := cctidy.WithBashSweep(bashCfg)
-		globalOpts = append(globalOpts, bashOpt)
-		projectOpts = append(projectOpts, bashOpt)
-		if safe {
-			safeOpt := cctidy.WithBashSweepSafe()
-			globalOpts = append(globalOpts, safeOpt)
-			projectOpts = append(projectOpts, safeOpt)
-		}
-	}
+	bashOpts := c.bashSweepOpts()
+	globalOpts = append(globalOpts, bashOpts...)
+	projectOpts = append(projectOpts, bashOpts...)
 	if c.Unsafe {
 		unsafeOpt := cctidy.WithUnsafe()
 		globalOpts = append(globalOpts, unsafeOpt)

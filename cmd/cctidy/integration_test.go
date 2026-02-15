@@ -75,7 +75,6 @@ func TestSettingsGolden(t *testing.T) {
 	)
 	mcpServers := set.New("github")
 	sweeper := cctidy.NewPermissionSweeper(checker, homeDir, mcpServers,
-		cctidy.WithBashSweep(cctidy.BashSweepConfig{}),
 		cctidy.WithUnsafe(),
 		cctidy.WithBaseDir(baseDir),
 	)
