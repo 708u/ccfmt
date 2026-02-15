@@ -345,6 +345,21 @@ type sweepCategory struct {
 	count int
 }
 
+// Safety classifies a sweeper as safe or unsafe.
+// Safe sweepers run unconditionally; unsafe sweepers
+// require explicit opt-in via --unsafe flag or config.
+type Safety int
+
+const (
+	Safe Safety = iota
+	Unsafe
+)
+
+type toolEntry struct {
+	sweeper ToolSweeper
+	safety  Safety
+}
+
 // PermissionSweeper sweeps stale permission entries from settings objects.
 // It dispatches to tool-specific ToolSweeper implementations based on the
 // tool name extracted from each entry. Entries for unregistered tools are
@@ -352,7 +367,8 @@ type sweepCategory struct {
 //
 // Ref: https://code.claude.com/docs/en/permissions#permission-rule-syntax
 type PermissionSweeper struct {
-	tools map[ToolName]ToolSweeper
+	tools  map[ToolName]toolEntry
+	unsafe bool
 }
 
 // SweepOption configures a PermissionSweeper.
@@ -360,7 +376,9 @@ type SweepOption func(*sweepConfig)
 
 type sweepConfig struct {
 	baseDir      string
+	unsafe       bool
 	bashSweep    bool
+	bashSafe     bool
 	bashSweepCfg BashSweepConfig
 }
 
@@ -379,6 +397,21 @@ func WithBashSweep(cfg BashSweepConfig) SweepOption {
 	return func(c *sweepConfig) {
 		c.bashSweep = true
 		c.bashSweepCfg = cfg
+	}
+}
+
+// WithBashSweepSafe marks Bash sweeping as safe tier
+// (always active without --unsafe).
+func WithBashSweepSafe() SweepOption {
+	return func(c *sweepConfig) {
+		c.bashSafe = true
+	}
+}
+
+// WithUnsafe enables unsafe-tier sweepers.
+func WithUnsafe() SweepOption {
+	return func(c *sweepConfig) {
+		c.unsafe = true
 	}
 }
 
@@ -407,11 +440,11 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	}
 	task := NewTaskToolSweeper(LoadAgentNames(agentsDir))
 
-	tools := map[ToolName]ToolSweeper{
-		ToolRead: NewToolSweeper(re.ShouldSweep),
-		ToolEdit: NewToolSweeper(re.ShouldSweep),
-		ToolMCP:  NewToolSweeper(mcp.ShouldSweep),
-		ToolTask: NewToolSweeper(task.ShouldSweep),
+	tools := map[ToolName]toolEntry{
+		ToolRead: {sweeper: NewToolSweeper(re.ShouldSweep), safety: Safe},
+		ToolEdit: {sweeper: NewToolSweeper(re.ShouldSweep), safety: Safe},
+		ToolMCP:  {sweeper: NewToolSweeper(mcp.ShouldSweep), safety: Safe},
+		ToolTask: {sweeper: NewToolSweeper(task.ShouldSweep), safety: Safe},
 	}
 	if cfg.bashSweep {
 		bash := &BashToolSweeper{
@@ -420,10 +453,14 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 			baseDir:  cfg.baseDir,
 			excluder: NewBashExcluder(cfg.bashSweepCfg),
 		}
-		tools[ToolBash] = NewToolSweeper(bash.ShouldSweep)
+		safety := Unsafe
+		if cfg.bashSafe {
+			safety = Safe
+		}
+		tools[ToolBash] = toolEntry{sweeper: NewToolSweeper(bash.ShouldSweep), safety: safety}
 	}
 
-	return &PermissionSweeper{tools: tools}
+	return &PermissionSweeper{tools: tools, unsafe: cfg.unsafe}
 }
 
 // Sweep removes stale allow/ask permission entries from obj.
@@ -478,12 +515,16 @@ func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, resul
 		return false
 	}
 
-	sweeper, ok := p.tools[te.Name()]
+	tool, ok := p.tools[te.Name()]
 	if !ok {
 		return false
 	}
 
-	r := sweeper.ShouldSweep(ctx, te)
+	if tool.safety == Unsafe && !p.unsafe {
+		return false
+	}
+
+	r := tool.sweeper.ShouldSweep(ctx, te)
 	if r.Warn != "" {
 		result.Warns = append(result.Warns, entry)
 		return false

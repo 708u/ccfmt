@@ -20,14 +20,14 @@ import (
 var errUnformatted = errors.New("unformatted files detected")
 
 type CLI struct {
-	Target    string           `help:"Path to a specific file to format." short:"t" name:"target"`
-	Backup    bool             `help:"Create backup before writing."`
-	DryRun    bool             `help:"Show changes without writing." name:"dry-run"`
-	Check     bool             `help:"Exit with 1 if any file needs formatting."`
-	SweepBash bool             `help:"Sweep Bash tool permission entries." name:"sweep-bash"`
-	Config    string           `help:"Path to config file." name:"config"`
-	Verbose   bool             `help:"Show formatting details." short:"v"`
-	Version   kong.VersionFlag `help:"Print version."`
+	Target  string           `help:"Path to a specific file to format." short:"t" name:"target"`
+	Backup  bool             `help:"Create backup before writing."`
+	DryRun  bool             `help:"Show changes without writing." name:"dry-run"`
+	Check   bool             `help:"Exit with 1 if any file needs formatting."`
+	Unsafe  bool             `help:"Enable unsafe sweepers (e.g. Bash)." name:"unsafe"`
+	Config  string           `help:"Path to config file." name:"config"`
+	Verbose bool             `help:"Show formatting details." short:"v"`
+	Version kong.VersionFlag `help:"Print version."`
 
 	checker     cctidy.PathChecker
 	cfg         *cctidy.Config
@@ -186,19 +186,19 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 	return nil
 }
 
-// bashSweepConfig returns the BashSweepConfig and true if Bash
-// sweeping should be active. CLI flag takes precedence over config.
-func (c *CLI) bashSweepConfig() (cctidy.BashSweepConfig, bool) {
+// bashSweepConfig returns the BashSweepConfig, whether Bash sweeping
+// is active, and whether it should be classified as safe tier.
+func (c *CLI) bashSweepConfig() (cfg cctidy.BashSweepConfig, active bool, safe bool) {
 	if c.cfg == nil {
-		return cctidy.BashSweepConfig{}, c.SweepBash
+		return cctidy.BashSweepConfig{}, c.Unsafe, false
 	}
-	if c.SweepBash {
-		return c.cfg.Sweep.Bash, true
+	if c.Unsafe {
+		return c.cfg.Sweep.Bash, true, c.cfg.Sweep.Bash.Enabled
 	}
 	if c.cfg.Sweep.Bash.Enabled {
-		return c.cfg.Sweep.Bash, true
+		return c.cfg.Sweep.Bash, true, true
 	}
-	return cctidy.BashSweepConfig{}, false
+	return cctidy.BashSweepConfig{}, false, false
 }
 
 func (c *CLI) resolveTargets() []targetFile {
@@ -214,8 +214,14 @@ func (c *CLI) resolveTargets() []targetFile {
 		baseDir := filepath.Dir(filepath.Dir(c.Target))
 		opts = append(opts, cctidy.WithBaseDir(baseDir))
 	}
-	if bashCfg, ok := c.bashSweepConfig(); ok {
+	if bashCfg, ok, safe := c.bashSweepConfig(); ok {
 		opts = append(opts, cctidy.WithBashSweep(bashCfg))
+		if safe {
+			opts = append(opts, cctidy.WithBashSweepSafe())
+		}
+	}
+	if c.Unsafe {
+		opts = append(opts, cctidy.WithUnsafe())
 	}
 	serverSets := c.loadMCPServers()
 	mcpServers := c.mcpServersForTarget(serverSets, c.Target)
@@ -269,10 +275,20 @@ func (c *CLI) defaultTargets() []targetFile {
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
 	var globalOpts []cctidy.SweepOption
 	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(projectRoot)}
-	if bashCfg, ok := c.bashSweepConfig(); ok {
+	if bashCfg, ok, safe := c.bashSweepConfig(); ok {
 		bashOpt := cctidy.WithBashSweep(bashCfg)
 		globalOpts = append(globalOpts, bashOpt)
 		projectOpts = append(projectOpts, bashOpt)
+		if safe {
+			safeOpt := cctidy.WithBashSweepSafe()
+			globalOpts = append(globalOpts, safeOpt)
+			projectOpts = append(projectOpts, safeOpt)
+		}
+	}
+	if c.Unsafe {
+		unsafeOpt := cctidy.WithUnsafe()
+		globalOpts = append(globalOpts, unsafeOpt)
+		projectOpts = append(projectOpts, unsafeOpt)
 	}
 	serverSets := c.loadMCPServers()
 	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, serverSets.ForUserScope(), globalOpts...))
