@@ -27,6 +27,7 @@
       "Bash(git commit *)",
       "WebFetch(domain:github.com)",
       "Task(Explore)",
+      "Task(stub)",
       "Task(dead-custom-agent)",
       "Task(plugin:my-agent)",
       "mcp__github__search_code",

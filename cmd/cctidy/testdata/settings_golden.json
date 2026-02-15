@@ -125,6 +125,7 @@
       "Read(~/alive/notes.md)",
       "Task(Explore)",
       "Task(plugin:my-agent)",
+      "Task(stub)",
       "WebFetch(domain:github.com)",
       "Write",
       "Write(../alive/output.txt)",
