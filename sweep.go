@@ -256,6 +256,19 @@ type BashToolSweeper struct {
 	active   bool
 }
 
+// NewBashToolSweeper creates a BashToolSweeper.
+// active controls whether sweeping is performed at all;
+// when false, ShouldSweep always returns a zero result.
+func NewBashToolSweeper(checker PathChecker, homeDir, baseDir string, excluder *BashExcluder, active bool) *BashToolSweeper {
+	return &BashToolSweeper{
+		checker:  checker,
+		homeDir:  homeDir,
+		baseDir:  baseDir,
+		excluder: excluder,
+		active:   active,
+	}
+}
+
 func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) ToolSweepResult {
 	if !b.active {
 		return ToolSweepResult{}
@@ -420,13 +433,11 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	if cfg.bashSweepCfg != nil {
 		bashCfg = *cfg.bashSweepCfg
 	}
-	bash := &BashToolSweeper{
-		checker:  checker,
-		homeDir:  homeDir,
-		baseDir:  cfg.baseDir,
-		excluder: NewBashExcluder(bashCfg),
-		active:   bashCfg.Enabled || cfg.unsafe,
-	}
+	bash := NewBashToolSweeper(
+		checker, homeDir, cfg.baseDir,
+		NewBashExcluder(bashCfg),
+		bashCfg.Enabled || cfg.unsafe,
+	)
 
 	tools := map[ToolName]ToolSweeper{
 		ToolRead: NewToolSweeper(re.ShouldSweep),
