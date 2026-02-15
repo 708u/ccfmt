@@ -14,13 +14,11 @@ silently re-enable a previously blocked action.
 | Edit  | enabled  |
 | Write | enabled  |
 | Bash  | disabled |
-| Task  | disabled |
+| Task  | enabled  |
 | MCP   | enabled  |
 
 Bash sweeping requires `--sweep-bash` flag or
-`enabled = true` in the config file. Task sweeping
-requires `--sweep-task` flag or `enabled = true` in
-the config file. See
+`enabled = true` in the config file. See
 [CLI Reference](cli.md#configuration-file) for config
 details.
 
@@ -130,7 +128,7 @@ ensure directory boundary matching.
 
 ## Task
 
-Enabled with `--sweep-task`.
+Always active.
 
 Task entries have the form `Task(AgentName)`.
 The sweeper checks whether the referenced agent still
@@ -145,8 +143,6 @@ The following entries are never swept:
   `statusline-setup`
 - **Plugin agents**: specifier contains `:` (e.g.
   `plugin:my-agent`)
-- **Excluded agents**: listed in config
-  `exclude_agents`
 - **Existing agent files**: `.claude/agents/<name>.md`
   found in either the home directory or the project
   root
@@ -159,10 +155,9 @@ The following entries are never swept:
 An entry is swept when all of these are true:
 
 1. The agent is not built-in
-2. The agent is not excluded by config
-3. The specifier does not contain `:` (not a plugin)
-4. No `.md` file exists in home or project agents dir
-5. A project context (`baseDir`) is available
+2. The specifier does not contain `:` (not a plugin)
+3. No `.md` file exists in home or project agents dir
+4. A project context (`baseDir`) is available
 
 ### Examples
 
@@ -173,15 +168,6 @@ An entry is swept when all of these are true:
 | `Task(my-agent)` (.md exists) | kept   | agent file found |
 | `Task(dead-agent)`            | swept  | agent not found  |
 | `Task(unknown)` (no baseDir)  | kept   | no project ctx   |
-
-### Exclude Patterns
-
-When a config file is provided, Task entries matching
-`exclude_agents` are always kept (never swept).
-
-| Type             | Match method | Example            |
-| ---------------- | ------------ | ------------------ |
-| `exclude_agents` | Exact name   | `my-special-agent` |
 
 ## MCP
 

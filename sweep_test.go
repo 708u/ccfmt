@@ -570,27 +570,19 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 	}{
 		{
 			name:      "built-in Explore is kept",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project"),
 			specifier: "Explore",
 			wantSweep: false,
 		},
 		{
 			name:      "built-in statusline-setup is kept",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project"),
 			specifier: "statusline-setup",
 			wantSweep: false,
 		},
 		{
-			name: "excluded agent is kept",
-			sweeper: NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", TaskSweepConfig{
-				ExcludeAgents: []string{"special"},
-			}),
-			specifier: "special",
-			wantSweep: false,
-		},
-		{
 			name:      "plugin agent with colon is kept",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project"),
 			specifier: "plugin:agent",
 			wantSweep: false,
 		},
@@ -598,7 +590,7 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 			name: "agent with home .md file is kept",
 			sweeper: NewTaskToolSweeper(
 				testutil.CheckerFor("/home/user/.claude/agents/my-agent.md"),
-				"/home/user", "/project", TaskSweepConfig{},
+				"/home/user", "/project",
 			),
 			specifier: "my-agent",
 			wantSweep: false,
@@ -607,26 +599,26 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 			name: "agent with project .md file is kept",
 			sweeper: NewTaskToolSweeper(
 				testutil.CheckerFor("/project/.claude/agents/proj-agent.md"),
-				"/home/user", "/project", TaskSweepConfig{},
+				"/home/user", "/project",
 			),
 			specifier: "proj-agent",
 			wantSweep: false,
 		},
 		{
 			name:      "dead agent is swept",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project"),
 			specifier: "dead-agent",
 			wantSweep: true,
 		},
 		{
 			name:      "unknown agent without baseDir is kept",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", "", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", ""),
 			specifier: "unknown",
 			wantSweep: false,
 		},
 		{
 			name:      "dead agent without homeDir is swept when baseDir set",
-			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "", "/project", TaskSweepConfig{}),
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "", "/project"),
 			specifier: "dead",
 			wantSweep: true,
 		},
@@ -952,7 +944,7 @@ func TestSweepPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("task entries swept when enabled and agent dead", func(t *testing.T) {
+	t.Run("task entries swept when agent dead", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -963,7 +955,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithTaskSweep(TaskSweepConfig{}), WithBaseDir("/project")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithBaseDir("/project")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 2 {
 			t.Errorf("allow len = %d, want 2, got %v", len(allow), allow)
@@ -973,26 +965,7 @@ func TestSweepPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("task entries kept when sweep-task not enabled", func(t *testing.T) {
-		t.Parallel()
-		obj := map[string]any{
-			"permissions": map[string]any{
-				"allow": []any{
-					"Task(dead-agent)",
-				},
-			},
-		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithBaseDir("/project")).Sweep(t.Context(), obj)
-		allow := obj["permissions"].(map[string]any)["allow"].([]any)
-		if len(allow) != 1 {
-			t.Errorf("allow len = %d, want 1, got %v", len(allow), allow)
-		}
-		if result.SweptAllow != 0 {
-			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
-		}
-	})
-
-	t.Run("task built-in agent kept when sweep-task enabled", func(t *testing.T) {
+	t.Run("task built-in agent kept", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -1003,7 +976,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithTaskSweep(TaskSweepConfig{}), WithBaseDir("/project")).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithBaseDir("/project")).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 3 {
 			t.Errorf("allow len = %d, want 3, got %v", len(allow), allow)

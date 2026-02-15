@@ -24,7 +24,6 @@ type CLI struct {
 	DryRun    bool             `help:"Show changes without writing." name:"dry-run"`
 	Check     bool             `help:"Exit with 1 if any file needs formatting."`
 	SweepBash bool             `help:"Sweep Bash tool permission entries." name:"sweep-bash"`
-	SweepTask bool             `help:"Sweep Task tool permission entries." name:"sweep-task"`
 	Config    string           `help:"Path to config file." name:"config"`
 	Verbose   bool             `help:"Show formatting details." short:"v"`
 	Version   kong.VersionFlag `help:"Print version."`
@@ -201,21 +200,6 @@ func (c *CLI) bashSweepConfig() (cctidy.BashSweepConfig, bool) {
 	return cctidy.BashSweepConfig{}, false
 }
 
-// taskSweepConfig returns the TaskSweepConfig and true if Task
-// sweeping should be active. CLI flag takes precedence over config.
-func (c *CLI) taskSweepConfig() (cctidy.TaskSweepConfig, bool) {
-	if c.cfg == nil {
-		return cctidy.TaskSweepConfig{}, c.SweepTask
-	}
-	if c.SweepTask {
-		return c.cfg.Sweep.Task, true
-	}
-	if c.cfg.Sweep.Task.Enabled {
-		return c.cfg.Sweep.Task, true
-	}
-	return cctidy.TaskSweepConfig{}, false
-}
-
 func (c *CLI) resolveTargets() []targetFile {
 	if c.Target == "" {
 		return c.defaultTargets()
@@ -224,9 +208,6 @@ func (c *CLI) resolveTargets() []targetFile {
 	opts := []cctidy.SweepOption{cctidy.WithBaseDir(baseDir)}
 	if bashCfg, ok := c.bashSweepConfig(); ok {
 		opts = append(opts, cctidy.WithBashSweep(bashCfg))
-	}
-	if taskCfg, ok := c.taskSweepConfig(); ok {
-		opts = append(opts, cctidy.WithTaskSweep(taskCfg))
 	}
 	servers := c.loadMCPServers()
 	sweeper := cctidy.NewPermissionSweeper(c.checker, c.homeDir, servers, opts...)
@@ -276,11 +257,6 @@ func (c *CLI) defaultTargets() []targetFile {
 		bashOpt := cctidy.WithBashSweep(bashCfg)
 		globalOpts = append(globalOpts, bashOpt)
 		projectOpts = append(projectOpts, bashOpt)
-	}
-	if taskCfg, ok := c.taskSweepConfig(); ok {
-		taskOpt := cctidy.WithTaskSweep(taskCfg)
-		globalOpts = append(globalOpts, taskOpt)
-		projectOpts = append(projectOpts, taskOpt)
 	}
 	servers := c.loadMCPServers()
 	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, servers, globalOpts...))

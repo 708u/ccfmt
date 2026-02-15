@@ -15,7 +15,6 @@ cctidy [flags]
 | `--dry-run`           |       | false   | Show changes without writing      |
 | `--check`             |       | false   | Exit with 1 if any file is dirty  |
 | `--sweep-bash`        |       | false   | Include Bash entries in sweeping  |
-| `--sweep-task`        |       | false   | Include Task entries in sweeping  |
 | `--config`            |       | (auto)  | Path to config file               |
 | `--verbose`           | `-v`  | false   | Show formatting details           |
 | `--version`           |       |         | Print version                     |
@@ -34,7 +33,7 @@ layers overriding earlier ones.
 | 1 (low)  | `~/.config/cctidy/config.toml`  | Global  |
 | 2        | `.claude/cctidy.toml`           | Project |
 | 3        | `.claude/cctidy.local.toml`     | Local   |
-| 4 (high) | CLI flags (`--sweep-bash`, etc) | Runtime |
+| 4 (high) | CLI flags (`--sweep-bash`)      | Runtime |
 
 The global config path can be overridden with
 `--config PATH`.
@@ -96,18 +95,7 @@ Merged result: `enabled = true`,
 |                    |          |         | token match)               |
 | `exclude_paths`    | string[] | []      | Path prefixes to keep      |
 
-#### `[sweep.task]`
-
-| Key              | Type     | Default | Description         |
-| ---------------- | -------- | ------- | ------------------- |
-| `enabled`        | bool     | (unset) | Enable Task sweep   |
-| `exclude_agents` | string[] | []      | Agent names to keep |
-|                  |          |         | (exact match)       |
-
-### Priority: CLI vs Config
-
-The same priority rules apply to both `--sweep-bash`
-and `--sweep-task`:
+### Priority: CLI vs Config (Bash)
 
 | config `enabled` | CLI flag | Result    |
 | ---------------- | -------- | --------- |

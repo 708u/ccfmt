@@ -303,41 +303,32 @@ func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) 
 
 // TaskToolSweeper sweeps Task permission entries where the
 // referenced agent no longer exists. Built-in agents, plugin
-// agents (containing ":"), excluded agents, and agents with
-// a .md file in the agents directory are always kept.
+// agents (containing ":"), and agents with a .md file in the
+// agents directory are always kept.
 type TaskToolSweeper struct {
 	checker  PathChecker
 	homeDir  string
 	baseDir  string
 	builtins map[string]bool
-	excludes map[string]bool
 }
 
 // NewTaskToolSweeper creates a TaskToolSweeper.
-func NewTaskToolSweeper(checker PathChecker, homeDir, baseDir string, cfg TaskSweepConfig) *TaskToolSweeper {
+func NewTaskToolSweeper(checker PathChecker, homeDir, baseDir string) *TaskToolSweeper {
 	builtins := make(map[string]bool, len(builtinAgents))
 	for _, a := range builtinAgents {
 		builtins[a] = true
-	}
-	excludes := make(map[string]bool, len(cfg.ExcludeAgents))
-	for _, a := range cfg.ExcludeAgents {
-		excludes[a] = true
 	}
 	return &TaskToolSweeper{
 		checker:  checker,
 		homeDir:  homeDir,
 		baseDir:  baseDir,
 		builtins: builtins,
-		excludes: excludes,
 	}
 }
 
 func (t *TaskToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) ToolSweepResult {
 	specifier := entry.Specifier
 	if t.builtins[specifier] {
-		return ToolSweepResult{}
-	}
-	if t.excludes[specifier] {
 		return ToolSweepResult{}
 	}
 	if strings.Contains(specifier, ":") {
@@ -401,8 +392,6 @@ type sweepConfig struct {
 	baseDir      string
 	bashSweep    bool
 	bashSweepCfg BashSweepConfig
-	taskSweep    bool
-	taskSweepCfg TaskSweepConfig
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
@@ -423,17 +412,6 @@ func WithBashSweep(cfg BashSweepConfig) SweepOption {
 	}
 }
 
-// WithTaskSweep enables sweeping of Task permission entries whose
-// referenced agents no longer exist. The optional TaskSweepConfig
-// specifies exclusion patterns; entries matching any pattern are
-// always kept regardless of agent existence.
-func WithTaskSweep(cfg TaskSweepConfig) SweepOption {
-	return func(c *sweepConfig) {
-		c.taskSweep = true
-		c.taskSweepCfg = cfg
-	}
-}
-
 // NewPermissionSweeper creates a PermissionSweeper.
 // homeDir is required for resolving ~/path specifiers.
 // servers is the set of known MCP server names for MCP sweep.
@@ -451,11 +429,14 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers MCPServer
 
 	mcp := NewMCPToolSweeper(servers)
 
+	task := NewTaskToolSweeper(checker, homeDir, cfg.baseDir)
+
 	tools := map[ToolName]ToolSweeper{
 		ToolRead:  NewToolSweeper(re.ShouldSweep),
 		ToolEdit:  NewToolSweeper(re.ShouldSweep),
 		ToolWrite: NewToolSweeper(re.ShouldSweep),
 		ToolMCP:   NewToolSweeper(mcp.ShouldSweep),
+		ToolTask:  NewToolSweeper(task.ShouldSweep),
 	}
 	if cfg.bashSweep {
 		bash := &BashToolSweeper{
@@ -465,12 +446,6 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers MCPServer
 			excluder: NewBashExcluder(cfg.bashSweepCfg),
 		}
 		tools[ToolBash] = NewToolSweeper(bash.ShouldSweep)
-	}
-	if cfg.taskSweep {
-		task := NewTaskToolSweeper(
-			checker, homeDir, cfg.baseDir, cfg.taskSweepCfg,
-		)
-		tools[ToolTask] = NewToolSweeper(task.ShouldSweep)
 	}
 
 	return &PermissionSweeper{tools: tools}
