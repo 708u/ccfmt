@@ -114,7 +114,7 @@ var builtinAgents = map[string]bool{
 	"statusline-setup":  true,
 }
 
-// ReadEditToolSweeper sweeps Read/Edit/Write permission entries
+// ReadEditToolSweeper sweeps Read/Edit permission entries
 // that reference non-existent paths.
 //
 // Specifier resolution rules:
@@ -412,11 +412,10 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers MCPServer
 	task := NewTaskToolSweeper(LoadAgentNames(agentsDir))
 
 	tools := map[ToolName]ToolSweeper{
-		ToolRead:  NewToolSweeper(re.ShouldSweep),
-		ToolEdit:  NewToolSweeper(re.ShouldSweep),
-		ToolWrite: NewToolSweeper(re.ShouldSweep),
-		ToolMCP:   NewToolSweeper(mcp.ShouldSweep),
-		ToolTask:  NewToolSweeper(task.ShouldSweep),
+		ToolRead: NewToolSweeper(re.ShouldSweep),
+		ToolEdit: NewToolSweeper(re.ShouldSweep),
+		ToolMCP:  NewToolSweeper(mcp.ShouldSweep),
+		ToolTask: NewToolSweeper(task.ShouldSweep),
 	}
 	if cfg.bashSweep {
 		bash := &BashToolSweeper{
