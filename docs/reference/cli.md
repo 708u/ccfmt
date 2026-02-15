@@ -33,7 +33,7 @@ layers overriding earlier ones.
 | 1 (low)  | `~/.config/cctidy/config.toml`  | Global  |
 | 2        | `.claude/cctidy.toml`           | Project |
 | 3        | `.claude/cctidy.local.toml`     | Local   |
-| 4 (high) | CLI flags (`--sweep-bash`, etc) | Runtime |
+| 4 (high) | CLI flags (`--sweep-bash`)      | Runtime |
 
 The global config path can be overridden with
 `--config PATH`.
@@ -106,9 +106,6 @@ Merged result: `enabled = true`,
 
 The CLI flag always wins. Exclude patterns are
 config-only (no CLI flags).
-
-MCP sweep is always active and does not require a
-CLI flag or config `enabled` setting.
 
 ## Target Files
 
