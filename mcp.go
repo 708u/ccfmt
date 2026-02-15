@@ -53,6 +53,18 @@ func LoadMCPServers(mcpJSONPath, claudeJSONPath string) (MCPServerSet, error) {
 	return servers, nil
 }
 
+// collectServerNames unmarshals raw as a JSON object and adds
+// its keys to servers.
+func collectServerNames(raw json.RawMessage, servers MCPServerSet) {
+	var names map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &names); err != nil {
+		return
+	}
+	for name := range names {
+		servers[name] = true
+	}
+}
+
 // loadMCPServersFromMCPJSON reads .mcp.json and extracts server names
 // from the "mcpServers" key.
 func loadMCPServersFromMCPJSON(path string, servers MCPServerSet) error {
@@ -69,16 +81,8 @@ func loadMCPServersFromMCPJSON(path string, servers MCPServerSet) error {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	raw, ok := obj["mcpServers"]
-	if !ok {
-		return nil
-	}
-	var mcpServers map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &mcpServers); err != nil {
-		return nil
-	}
-	for name := range mcpServers {
-		servers[name] = true
+	if raw, ok := obj["mcpServers"]; ok {
+		collectServerNames(raw, servers)
 	}
 	return nil
 }
@@ -102,32 +106,25 @@ func loadMCPServersFromClaudeJSON(path string, servers MCPServerSet) error {
 
 	// Top-level mcpServers
 	if raw, ok := obj["mcpServers"]; ok {
-		var topServers map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &topServers); err == nil {
-			for name := range topServers {
-				servers[name] = true
-			}
-		}
+		collectServerNames(raw, servers)
 	}
 
 	// projects → each project → mcpServers
-	if raw, ok := obj["projects"]; ok {
-		var projects map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &projects); err == nil {
-			for _, projRaw := range projects {
-				var projObj map[string]json.RawMessage
-				if err := json.Unmarshal(projRaw, &projObj); err != nil {
-					continue
-				}
-				if mcpRaw, ok := projObj["mcpServers"]; ok {
-					var projServers map[string]json.RawMessage
-					if err := json.Unmarshal(mcpRaw, &projServers); err == nil {
-						for name := range projServers {
-							servers[name] = true
-						}
-					}
-				}
-			}
+	raw, ok := obj["projects"]
+	if !ok {
+		return nil
+	}
+	var projects map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &projects); err != nil {
+		return nil
+	}
+	for _, projRaw := range projects {
+		var projObj map[string]json.RawMessage
+		if err := json.Unmarshal(projRaw, &projObj); err != nil {
+			continue
+		}
+		if mcpRaw, ok := projObj["mcpServers"]; ok {
+			collectServerNames(mcpRaw, servers)
 		}
 	}
 
