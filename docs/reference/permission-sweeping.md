@@ -6,7 +6,9 @@ arrays are swept. `permissions.deny` entries are always
 preserved because removing a stale deny rule could
 silently re-enable a previously blocked action.
 
-## Supported Tools
+## Tool Coverage
+
+### Swept
 
 | Tool  | Default  |
 | ----- | -------- |
@@ -22,10 +24,36 @@ Bash sweeping requires `--sweep-bash` flag or
 See [CLI Reference](cli.md#configuration-file)
 for config details.
 
-Entries for tools not listed above (e.g. `Write`,
-`WebFetch`, `Grep`) are kept unchanged. Write entries
-are excluded because the tool creates new files, so
-the target path not existing is expected.
+### Not Swept
+
+| Tool      | Reason                                  |
+| --------- | --------------------------------------- |
+| Write     | Creates files; absent path is normal    |
+| Grep      | Specifier is a search pattern, not path |
+| Glob      | Specifier is a glob pattern, not path   |
+| WebFetch  | Specifier is a URL or domain            |
+| WebSearch | Specifier is a search query             |
+
+- Write: パスが存在しないことは新規ファイル作成
+  として正常な動作。sweepすると有効なエントリを
+  誤って削除してしまう。
+- Grep, Glob, WebFetch, WebSearch: specifierが
+  ファイルシステムパスではなくパターンやURL等
+  であるため、パス存在チェックが適用できない。
+
+### Not Yet Supported
+
+| Tool         | Similar to |
+| ------------ | ---------- |
+| MultiEdit    | Edit       |
+| NotebookEdit | Edit       |
+
+これらはパスベースのspecifierを持ち、Read/Editと
+同様のロジックでsweep可能だが、まだ実装されて
+いない。
+
+上記いずれにも該当しない未認識toolのエントリは
+そのまま保持される。
 
 ## Read / Edit
 
