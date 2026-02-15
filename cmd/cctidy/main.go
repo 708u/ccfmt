@@ -209,8 +209,9 @@ func (c *CLI) resolveTargets() []targetFile {
 	if bashCfg, ok := c.bashSweepConfig(); ok {
 		opts = append(opts, cctidy.WithBashSweep(bashCfg))
 	}
-	servers := c.loadMCPServers()
-	sweeper := cctidy.NewPermissionSweeper(c.checker, c.homeDir, servers, opts...)
+	serverSets := c.loadMCPServers()
+	mcpServers := c.mcpServersForTarget(serverSets, c.Target)
+	sweeper := cctidy.NewPermissionSweeper(c.checker, c.homeDir, mcpServers, opts...)
 	var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
 	if filepath.Base(c.Target) == ".claude.json" {
 		f = cctidy.NewClaudeJSONFormatter(c.checker)
@@ -234,18 +235,31 @@ func findProjectRoot(dir string) string {
 }
 
 // loadMCPServers loads known MCP server names from .mcp.json and
-// ~/.claude.json. Errors are printed as warnings; an empty set is
-// returned on failure so sweep can still proceed conservatively.
-func (c *CLI) loadMCPServers() cctidy.MCPServerSet {
+// ~/.claude.json. Errors are printed as warnings; a zero-value
+// MCPServerSets is returned on failure so sweep can still proceed
+// conservatively.
+func (c *CLI) loadMCPServers() cctidy.MCPServerSets {
 	servers, err := cctidy.LoadMCPServers(
 		filepath.Join(c.projectRoot, ".mcp.json"),
 		filepath.Join(c.homeDir, ".claude.json"),
 	)
 	if err != nil {
 		fmt.Fprintf(c.w, "cctidy: warning: loading MCP servers: %v\n", err)
-		return cctidy.MCPServerSet{}
+		return cctidy.MCPServerSets{}
 	}
 	return servers
+}
+
+// mcpServersForTarget returns the appropriate MCPServerSet for the
+// given target path. User-scope paths (~/.claude/) get User set;
+// everything else gets Project set.
+func (c *CLI) mcpServersForTarget(servers cctidy.MCPServerSets, target string) cctidy.MCPServerSet {
+	claudeDir := filepath.Join(c.homeDir, ".claude")
+	rel, err := filepath.Rel(claudeDir, target)
+	if err == nil && filepath.IsLocal(rel) {
+		return servers.ForUserScope()
+	}
+	return servers.ForProjectScope()
 }
 
 func (c *CLI) defaultTargets() []targetFile {
@@ -258,9 +272,9 @@ func (c *CLI) defaultTargets() []targetFile {
 		globalOpts = append(globalOpts, bashOpt)
 		projectOpts = append(projectOpts, bashOpt)
 	}
-	servers := c.loadMCPServers()
-	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, servers, globalOpts...))
-	projectSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, servers, projectOpts...))
+	serverSets := c.loadMCPServers()
+	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, serverSets.ForUserScope(), globalOpts...))
+	projectSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, c.homeDir, serverSets.ForProjectScope(), projectOpts...))
 	return []targetFile{
 		{path: filepath.Join(c.homeDir, ".claude.json"), formatter: claude},
 		{path: filepath.Join(c.homeDir, ".claude", "settings.json"), formatter: globalSettings},
