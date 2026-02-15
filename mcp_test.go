@@ -299,22 +299,22 @@ func TestLoadMCPServers(t *testing.T) {
 func TestMCPServerSetsScopes(t *testing.T) {
 	t.Parallel()
 
-	t.Run("zero value returns empty sets", func(t *testing.T) {
+	t.Run("nil pointer returns empty sets", func(t *testing.T) {
 		t.Parallel()
-		var sets MCPServerSets
+		var sets *MCPServerSets
 		user := sets.ForUserScope()
 		project := sets.ForProjectScope()
 		if len(user) != 0 {
-			t.Errorf("zero-value user scope should be empty, got %v", user)
+			t.Errorf("nil user scope should be empty, got %v", user)
 		}
 		if len(project) != 0 {
-			t.Errorf("zero-value project scope should be empty, got %v", project)
+			t.Errorf("nil project scope should be empty, got %v", project)
 		}
 	})
 
 	t.Run("user scope excludes mcp.json", func(t *testing.T) {
 		t.Parallel()
-		sets := MCPServerSets{
+		sets := &MCPServerSets{
 			mcpJSON:    MCPServerSet{"slack": true},
 			claudeJSON: MCPServerSet{"github": true},
 		}
@@ -329,7 +329,7 @@ func TestMCPServerSetsScopes(t *testing.T) {
 
 	t.Run("project scope includes both", func(t *testing.T) {
 		t.Parallel()
-		sets := MCPServerSets{
+		sets := &MCPServerSets{
 			mcpJSON:    MCPServerSet{"slack": true},
 			claudeJSON: MCPServerSet{"github": true},
 		}
@@ -344,7 +344,7 @@ func TestMCPServerSetsScopes(t *testing.T) {
 
 	t.Run("returned sets are independent copies", func(t *testing.T) {
 		t.Parallel()
-		sets := MCPServerSets{
+		sets := &MCPServerSets{
 			claudeJSON: MCPServerSet{"github": true},
 		}
 		user1 := sets.ForUserScope()

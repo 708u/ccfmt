@@ -48,8 +48,8 @@ type MCPServerSets struct {
 // ForUserScope returns servers available in user scope
 // (~/.claude/settings.json, ~/.claude/settings.local.json).
 // This includes only ~/.claude.json servers, not .mcp.json.
-func (s MCPServerSets) ForUserScope() MCPServerSet {
-	if len(s.claudeJSON) == 0 {
+func (s *MCPServerSets) ForUserScope() MCPServerSet {
+	if s == nil || len(s.claudeJSON) == 0 {
 		return MCPServerSet{}
 	}
 	result := make(MCPServerSet, len(s.claudeJSON))
@@ -62,7 +62,10 @@ func (s MCPServerSets) ForUserScope() MCPServerSet {
 // ForProjectScope returns servers available in project scope
 // (.claude/settings.json, .claude/settings.local.json).
 // This includes both .mcp.json and ~/.claude.json servers.
-func (s MCPServerSets) ForProjectScope() MCPServerSet {
+func (s *MCPServerSets) ForProjectScope() MCPServerSet {
+	if s == nil {
+		return MCPServerSet{}
+	}
 	result := make(MCPServerSet, len(s.mcpJSON)+len(s.claudeJSON))
 	for k := range s.claudeJSON {
 		result[k] = true
@@ -76,18 +79,18 @@ func (s MCPServerSets) ForProjectScope() MCPServerSet {
 // LoadMCPServers collects known MCP server names from .mcp.json
 // and ~/.claude.json. Missing files are silently ignored.
 // JSON parse errors are returned.
-func LoadMCPServers(mcpJSONPath, claudeJSONPath string) (MCPServerSets, error) {
+func LoadMCPServers(mcpJSONPath, claudeJSONPath string) (*MCPServerSets, error) {
 	mcpServers := make(MCPServerSet)
 	claudeServers := make(MCPServerSet)
 
 	if err := loadMCPServersFromMCPJSON(mcpJSONPath, mcpServers); err != nil {
-		return MCPServerSets{}, err
+		return nil, err
 	}
 	if err := loadMCPServersFromClaudeJSON(claudeJSONPath, claudeServers); err != nil {
-		return MCPServerSets{}, err
+		return nil, err
 	}
 
-	return MCPServerSets{mcpJSON: mcpServers, claudeJSON: claudeServers}, nil
+	return &MCPServerSets{mcpJSON: mcpServers, claudeJSON: claudeServers}, nil
 }
 
 // collectServerNames unmarshals raw as a JSON object and adds

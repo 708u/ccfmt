@@ -235,17 +235,16 @@ func findProjectRoot(dir string) string {
 }
 
 // loadMCPServers loads known MCP server names from .mcp.json and
-// ~/.claude.json. Errors are printed as warnings; a zero-value
-// MCPServerSets is returned on failure so sweep can still proceed
-// conservatively.
-func (c *CLI) loadMCPServers() cctidy.MCPServerSets {
+// ~/.claude.json. Errors are printed as warnings; nil is returned
+// on failure so sweep can still proceed conservatively.
+func (c *CLI) loadMCPServers() *cctidy.MCPServerSets {
 	servers, err := cctidy.LoadMCPServers(
 		filepath.Join(c.projectRoot, ".mcp.json"),
 		filepath.Join(c.homeDir, ".claude.json"),
 	)
 	if err != nil {
 		fmt.Fprintf(c.w, "cctidy: warning: loading MCP servers: %v\n", err)
-		return cctidy.MCPServerSets{}
+		return nil
 	}
 	return servers
 }
@@ -253,7 +252,7 @@ func (c *CLI) loadMCPServers() cctidy.MCPServerSets {
 // mcpServersForTarget returns the appropriate MCPServerSet for the
 // given target path. User-scope paths (~/.claude/) get User set;
 // everything else gets Project set.
-func (c *CLI) mcpServersForTarget(servers cctidy.MCPServerSets, target string) cctidy.MCPServerSet {
+func (c *CLI) mcpServersForTarget(servers *cctidy.MCPServerSets, target string) cctidy.MCPServerSet {
 	claudeDir := filepath.Join(c.homeDir, ".claude")
 	rel, err := filepath.Rel(claudeDir, target)
 	if err == nil && filepath.IsLocal(rel) {
