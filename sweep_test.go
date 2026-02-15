@@ -616,7 +616,7 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 		},
 		{
 			name:      "frontmatter name is kept",
-			sweeper:   NewTaskToolSweeper(AgentNameSet{"custom-name": true, "file-agent": true}),
+			sweeper:   NewTaskToolSweeper(AgentNameSet{"custom-name": true}),
 			specifier: "custom-name",
 			wantSweep: false,
 		},
@@ -959,7 +959,7 @@ func TestSweepPermissions(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".claude", "agents")
 		os.MkdirAll(agentsDir, 0o755)
-		os.WriteFile(filepath.Join(agentsDir, "alive-agent.md"), []byte("# Alive"), 0o644)
+		os.WriteFile(filepath.Join(agentsDir, "alive-agent.md"), []byte("---\nname: alive-agent\n---\n# Alive"), 0o644)
 
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -985,7 +985,7 @@ func TestSweepPermissions(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".claude", "agents")
 		os.MkdirAll(agentsDir, 0o755)
-		os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("# Dummy"), 0o644)
+		os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("---\nname: dummy\n---\n# Dummy"), 0o644)
 
 		obj := map[string]any{
 			"permissions": map[string]any{

@@ -64,17 +64,12 @@ func TestParseAgentName(t *testing.T) {
 func TestLoadAgentNames(t *testing.T) {
 	t.Parallel()
 
-	t.Run("filename and frontmatter names", func(t *testing.T) {
+	t.Run("only frontmatter name is registered", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, "agents")
 		os.Mkdir(agentsDir, 0o755)
 
-		os.WriteFile(
-			filepath.Join(agentsDir, "file-agent.md"),
-			[]byte("# File Agent\n"),
-			0o644,
-		)
 		os.WriteFile(
 			filepath.Join(agentsDir, "frontmatter-agent.md"),
 			[]byte("---\nname: custom-name\n---\n# Agent\n"),
@@ -83,15 +78,11 @@ func TestLoadAgentNames(t *testing.T) {
 
 		set := LoadAgentNames(agentsDir)
 
-		want := map[string]bool{
-			"file-agent":        true,
-			"frontmatter-agent": true,
-			"custom-name":       true,
+		if !set["custom-name"] {
+			t.Error("frontmatter name should be in set")
 		}
-		for name, expected := range want {
-			if set[name] != expected {
-				t.Errorf("set[%q] = %v, want %v", name, set[name], expected)
-			}
+		if set["frontmatter-agent"] {
+			t.Error("filename should not be in set when frontmatter name exists")
 		}
 	})
 
@@ -111,7 +102,7 @@ func TestLoadAgentNames(t *testing.T) {
 		}
 	})
 
-	t.Run("non-md files are ignored", func(t *testing.T) {
+	t.Run("non-md files and missing frontmatter are ignored", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, "agents")
@@ -123,8 +114,13 @@ func TestLoadAgentNames(t *testing.T) {
 			0o644,
 		)
 		os.WriteFile(
-			filepath.Join(agentsDir, "agent.md"),
-			[]byte("# Agent\n"),
+			filepath.Join(agentsDir, "no-frontmatter.md"),
+			[]byte("# Agent without frontmatter\n"),
+			0o644,
+		)
+		os.WriteFile(
+			filepath.Join(agentsDir, "valid.md"),
+			[]byte("---\nname: valid-agent\n---\n"),
 			0o644,
 		)
 
@@ -132,8 +128,11 @@ func TestLoadAgentNames(t *testing.T) {
 		if set["readme"] {
 			t.Error("non-.md file should not be in set")
 		}
-		if !set["agent"] {
-			t.Error("agent.md should be in set")
+		if set["no-frontmatter"] {
+			t.Error("file without frontmatter name should not be in set")
+		}
+		if !set["valid-agent"] {
+			t.Error("valid frontmatter name should be in set")
 		}
 	})
 

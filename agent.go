@@ -3,19 +3,27 @@ package cctidy
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/text"
 	meta "go.abhg.dev/goldmark/frontmatter"
 )
 
+// fmParser is a reusable goldmark parser with frontmatter support.
+var fmParser = goldmark.New(
+	goldmark.WithExtensions(
+		&meta.Extender{Mode: meta.SetMetadata},
+	),
+).Parser()
+
 // AgentNameSet is a set of known agent names.
 type AgentNameSet map[string]bool
 
 // LoadAgentNames scans the agents directory and returns
-// a set of agent names. Both filename-based names and
-// frontmatter name fields are included.
+// a set of agent names extracted from frontmatter.
+// The frontmatter name field is the sole agent identifier;
+// filenames are not used. Files without a valid name field
+// are skipped.
 // Returns an empty set if the directory does not exist.
 func LoadAgentNames(dir string) AgentNameSet {
 	set := make(AgentNameSet)
@@ -30,14 +38,10 @@ func LoadAgentNames(dir string) AgentNameSet {
 		if e.IsDir() {
 			continue
 		}
-		name := e.Name()
-		if !strings.HasSuffix(name, ".md") {
+		if filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
-		baseName := strings.TrimSuffix(name, ".md")
-		set[baseName] = true
-
-		data, err := os.ReadFile(filepath.Join(dir, name))
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			continue
 		}
@@ -51,12 +55,7 @@ func LoadAgentNames(dir string) AgentNameSet {
 // parseAgentName extracts the name field from YAML
 // frontmatter in data. Returns "" if not found.
 func parseAgentName(data []byte) string {
-	md := goldmark.New(
-		goldmark.WithExtensions(
-			&meta.Extender{Mode: meta.SetMetadata},
-		),
-	)
-	doc := md.Parser().Parse(text.NewReader(data))
+	doc := fmParser.Parse(text.NewReader(data))
 	m := doc.OwnerDocument().Meta()
 	if m == nil {
 		return ""

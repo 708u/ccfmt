@@ -319,6 +319,8 @@ func (t *TaskToolSweeper) ShouldSweep(_ context.Context, entry StandardEntry) To
 	if builtinAgents[specifier] {
 		return ToolSweepResult{}
 	}
+	// Plugin agents use "plugin-name:agent-name" convention
+	// and are managed by the plugin system, not by .md files.
 	if strings.Contains(specifier, ":") {
 		return ToolSweepResult{}
 	}

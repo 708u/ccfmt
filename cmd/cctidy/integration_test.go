@@ -62,7 +62,7 @@ func TestSettingsGolden(t *testing.T) {
 	// is non-empty and unknown agents get swept.
 	agentsDir := filepath.Join(baseDir, ".claude", "agents")
 	os.MkdirAll(agentsDir, 0o755)
-	os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("# Dummy"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("---\nname: dummy\n---\n# Dummy"), 0o644)
 	checker := testutil.CheckerFor(
 		"/alive/repo",
 		"/alive/data/file.txt",
@@ -838,7 +838,7 @@ func TestIntegrationTaskSweepProjectLevel(t *testing.T) {
 	os.MkdirAll(agentsDir, 0o755)
 
 	// Create an agent file for alive-agent in project
-	os.WriteFile(filepath.Join(agentsDir, "alive-agent.md"), []byte("# Alive Agent"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "alive-agent.md"), []byte("---\nname: alive-agent\n---\n# Alive Agent"), 0o644)
 
 	// Create an agent file with a frontmatter name different from filename
 	os.WriteFile(filepath.Join(agentsDir, "file-name-agent.md"),
@@ -907,9 +907,9 @@ func TestIntegrationTaskSweepProjectLevel(t *testing.T) {
 	if !strings.Contains(got, `"Task(frontmatter-agent)"`) {
 		t.Error("frontmatter-named Task(frontmatter-agent) was removed")
 	}
-	// file-name-agent should be kept (filename match)
-	if !strings.Contains(got, `"Task(file-name-agent)"`) {
-		t.Error("file-name Task(file-name-agent) was removed")
+	// file-name-agent should be swept (only frontmatter name is used)
+	if strings.Contains(got, `"Task(file-name-agent)"`) {
+		t.Error("filename-only Task(file-name-agent) should be swept")
 	}
 	// non-Task entry should be kept
 	if !strings.Contains(got, `"Read"`) {
@@ -933,9 +933,10 @@ func TestIntegrationTaskSweepUserLevel(t *testing.T) {
 	// Create home agents directory with a home-agent
 	homeAgentsDir := filepath.Join(dir, ".claude", "agents")
 	os.MkdirAll(homeAgentsDir, 0o755)
-	os.WriteFile(filepath.Join(homeAgentsDir, "home-agent.md"), []byte("# Home Agent"), 0o644)
+	os.WriteFile(filepath.Join(homeAgentsDir, "home-agent.md"),
+		[]byte("---\nname: home-agent\n---\n# Home Agent"), 0o644)
 
-	// Create an agent file with a frontmatter name
+	// Create an agent file with a frontmatter name different from filename
 	os.WriteFile(filepath.Join(homeAgentsDir, "fm-file.md"),
 		[]byte("---\nname: home-fm-agent\n---\n# Agent\n"), 0o644)
 
@@ -983,9 +984,9 @@ func TestIntegrationTaskSweepUserLevel(t *testing.T) {
 	if !strings.Contains(got, `"Task(home-fm-agent)"`) {
 		t.Error("frontmatter-named Task(home-fm-agent) was removed from user settings")
 	}
-	// filename-based agent should be kept
-	if !strings.Contains(got, `"Task(fm-file)"`) {
-		t.Error("file-name Task(fm-file) was removed from user settings")
+	// filename-only agent should be swept (only frontmatter name is used)
+	if strings.Contains(got, `"Task(fm-file)"`) {
+		t.Error("filename-only Task(fm-file) should be swept from user settings")
 	}
 }
 
