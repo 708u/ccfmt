@@ -24,7 +24,7 @@ var toolEntryRe = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9_]*)\((.*)\)$`)
 
 // ToolEntry represents a parsed permission entry routed to a specific tool.
 type ToolEntry interface {
-	toolName() ToolName
+	Name() ToolName
 }
 
 // StandardEntry is a parsed Tool(specifier) permission entry.
@@ -33,7 +33,7 @@ type StandardEntry struct {
 	Specifier string
 }
 
-func (e StandardEntry) toolName() ToolName { return e.Tool }
+func (e StandardEntry) Name() ToolName { return e.Tool }
 
 // MCPEntry is a parsed mcp__server__tool permission entry.
 type MCPEntry struct {
@@ -41,7 +41,7 @@ type MCPEntry struct {
 	RawEntry   string
 }
 
-func (e MCPEntry) toolName() ToolName { return ToolMCP }
+func (e MCPEntry) Name() ToolName { return ToolMCP }
 
 // extractToolEntry parses a permission entry string into a ToolEntry.
 // Returns nil for unrecognized entries.
@@ -365,10 +365,13 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 		baseDir: cfg.baseDir,
 	}
 
+	mcp := NewMCPToolSweeper(cfg.mcpServers)
+
 	tools := map[ToolName]ToolSweeper{
 		ToolRead:  NewToolSweeper(re.ShouldSweep),
 		ToolEdit:  NewToolSweeper(re.ShouldSweep),
 		ToolWrite: NewToolSweeper(re.ShouldSweep),
+		ToolMCP:   NewToolSweeper(mcp.ShouldSweep),
 	}
 	if cfg.bashSweep {
 		bash := &BashToolSweeper{
@@ -378,11 +381,6 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 			excluder: NewBashExcluder(cfg.bashSweepCfg),
 		}
 		tools[ToolBash] = NewToolSweeper(bash.ShouldSweep)
-	}
-
-	if cfg.mcpServers != nil {
-		mcp := NewMCPToolSweeper(cfg.mcpServers)
-		tools[ToolMCP] = NewToolSweeper(mcp.ShouldSweep)
 	}
 
 	return &PermissionSweeper{tools: tools}
@@ -440,7 +438,7 @@ func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, resul
 		return false
 	}
 
-	sweeper, ok := p.tools[te.toolName()]
+	sweeper, ok := p.tools[te.Name()]
 	if !ok {
 		return false
 	}
