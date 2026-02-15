@@ -18,9 +18,9 @@ silently re-enable a previously blocked action.
 | MCP   | enabled  |
 
 Bash sweeping requires `--sweep-bash` flag or
-`enabled = true` in the config file. See
-[CLI Reference](cli.md#configuration-file) for config
-details.
+`enabled = true` in the config file.
+See [CLI Reference](cli.md#configuration-file)
+for config details.
 
 Entries for tools not listed above (e.g. `WebFetch`,
 `Grep`) are kept unchanged.
@@ -159,7 +159,7 @@ An entry is swept when all of these are true:
 3. No `.md` file exists in home or project agents dir
 4. A project context (`baseDir`) is available
 
-### Examples
+### Task Examples
 
 | Entry                         | Result | Reason           |
 | ----------------------------- | ------ | ---------------- |
@@ -181,11 +181,11 @@ still registered in `.mcp.json` or `~/.claude.json`.
 
 Known servers are collected from two sources:
 
-| Source           | Key path                            |
-| ---------------- | ---------------------------------- |
-| `.mcp.json`      | `mcpServers.<name>`                |
-| `~/.claude.json` | `mcpServers.<name>`                |
-| `~/.claude.json` | `projects.<path>.mcpServers.<name>`|
+| Source           | Key path                             |
+| ---------------- | ------------------------------------ |
+| `.mcp.json`      | `mcpServers.<name>`                  |
+| `~/.claude.json` | `mcpServers.<name>`                  |
+| `~/.claude.json` | `projects.<path>.mcpServers.<name>`  |
 
 The union of all discovered server names forms the
 known set. Missing files are silently ignored.
