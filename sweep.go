@@ -322,7 +322,6 @@ type sweepConfig struct {
 	baseDir      string
 	bashSweep    bool
 	bashSweepCfg BashSweepConfig
-	mcpSweepCfg  *MCPSweepConfig
 	mcpServers   MCPServerSet
 }
 
@@ -346,9 +345,8 @@ func WithBashSweep(cfg BashSweepConfig) SweepOption {
 
 // WithMCPSweep enables sweeping of MCP tool permission entries
 // whose server is no longer present in the known server set.
-func WithMCPSweep(cfg MCPSweepConfig, servers MCPServerSet) SweepOption {
+func WithMCPSweep(servers MCPServerSet) SweepOption {
 	return func(c *sweepConfig) {
-		c.mcpSweepCfg = &cfg
 		c.mcpServers = servers
 	}
 }
@@ -382,11 +380,8 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, opts ...SweepOpti
 		tools[ToolBash] = NewToolSweeper(bash.ShouldSweep)
 	}
 
-	if cfg.mcpSweepCfg != nil {
-		mcp := NewMCPToolSweeper(
-			cfg.mcpServers,
-			NewMCPExcluder(cfg.mcpSweepCfg.ExcludeServers),
-		)
+	if cfg.mcpServers != nil {
+		mcp := NewMCPToolSweeper(cfg.mcpServers)
 		tools[ToolMCP] = NewToolSweeper(mcp.ShouldSweep)
 	}
 

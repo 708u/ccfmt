@@ -95,12 +95,6 @@ Merged result: `enabled = true`,
 |                    |          |         | token match)               |
 | `exclude_paths`    | string[] | []      | Path prefixes to keep      |
 
-#### `[sweep.mcp]`
-
-| Key               | Type     | Default | Description          |
-| ----------------- | -------- | ------- | -------------------- |
-| `exclude_servers` | string[] | []      | Server names to keep |
-
 ### Priority: CLI vs Config (`--sweep-bash`)
 
 | config `enabled` | CLI flag  | Result    |
@@ -114,8 +108,7 @@ The CLI flag always wins. Exclude patterns are
 config-only (no CLI flags).
 
 MCP sweep is always active and does not require a
-CLI flag or config `enabled` setting. Use
-`exclude_servers` to opt out specific servers.
+CLI flag or config `enabled` setting.
 
 ## Target Files
 

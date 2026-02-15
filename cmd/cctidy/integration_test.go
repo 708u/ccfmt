@@ -71,7 +71,7 @@ func TestSettingsGolden(t *testing.T) {
 	sweeper := cctidy.NewPermissionSweeper(checker, homeDir,
 		cctidy.WithBashSweep(cctidy.BashSweepConfig{}),
 		cctidy.WithBaseDir(baseDir),
-		cctidy.WithMCPSweep(cctidy.MCPSweepConfig{}, mcpServers),
+		cctidy.WithMCPSweep(mcpServers),
 	)
 	result, err := cctidy.NewSettingsJSONFormatter(sweeper).Format(t.Context(), input)
 	if err != nil {
@@ -1676,63 +1676,6 @@ func TestIntegrationMCPSweep(t *testing.T) {
 		}
 		if strings.Contains(got, `"mcp__slack__post_message"`) {
 			t.Error("slack entry should be swept (not in any config)")
-		}
-	})
-
-	t.Run("MCP sweep with exclude_servers config", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		projectDir := filepath.Join(dir, "project")
-		claudeDir := filepath.Join(projectDir, ".claude")
-		os.MkdirAll(claudeDir, 0o755)
-
-		configDir := filepath.Join(dir, "config")
-		os.MkdirAll(configDir, 0o755)
-		configFile := filepath.Join(configDir, "config.toml")
-		os.WriteFile(configFile, []byte(`
-[sweep.mcp]
-exclude_servers = ["jira"]
-`), 0o644)
-
-		input := `{
-  "permissions": {
-    "allow": [
-      "mcp__jira__create_issue",
-      "mcp__sentry__get_alert"
-    ]
-  }
-}`
-		file := filepath.Join(claudeDir, "settings.json")
-		os.WriteFile(file, []byte(input), 0o644)
-
-		cfg, err := cctidy.LoadConfig(configFile)
-		if err != nil {
-			t.Fatalf("loading config: %v", err)
-		}
-
-		var buf bytes.Buffer
-		cli := &CLI{
-			Target:      file,
-			Verbose:     true,
-			checker:     &osPathChecker{},
-			cfg:         cfg,
-			projectRoot: projectDir,
-			w:           &buf,
-		}
-		if err := cli.Run(t.Context(), dir); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		data, _ := os.ReadFile(file)
-		got := string(data)
-
-		// jira excluded → keep
-		if !strings.Contains(got, `"mcp__jira__create_issue"`) {
-			t.Error("jira entry should be kept (excluded by config)")
-		}
-		// sentry not excluded → sweep
-		if strings.Contains(got, `"mcp__sentry__get_alert"`) {
-			t.Error("sentry entry should be swept (not excluded)")
 		}
 	})
 

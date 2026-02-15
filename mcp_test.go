@@ -252,45 +252,10 @@ func TestLoadMCPServers(t *testing.T) {
 	})
 }
 
-func TestMCPExcluder(t *testing.T) {
-	t.Parallel()
-
-	excl := NewMCPExcluder([]string{"slack", "github"})
-
-	tests := []struct {
-		name       string
-		serverName string
-		want       bool
-	}{
-		{"excluded slack", "slack", true},
-		{"excluded github", "github", true},
-		{"not excluded jira", "jira", false},
-		{"empty string", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := excl.IsExcluded(tt.serverName); got != tt.want {
-				t.Errorf("IsExcluded(%q) = %v, want %v", tt.serverName, got, tt.want)
-			}
-		})
-	}
-
-	t.Run("empty excluder", func(t *testing.T) {
-		t.Parallel()
-		empty := NewMCPExcluder(nil)
-		if empty.IsExcluded("slack") {
-			t.Error("empty excluder should not exclude anything")
-		}
-	})
-}
-
 func TestMCPToolSweeper(t *testing.T) {
 	t.Parallel()
 
 	servers := MCPServerSet{"slack": true, "github": true}
-	noExclude := NewMCPExcluder(nil)
 
 	tests := []struct {
 		name      string
@@ -300,37 +265,31 @@ func TestMCPToolSweeper(t *testing.T) {
 	}{
 		{
 			name:      "server exists - keep",
-			sweeper:   NewMCPToolSweeper(servers, noExclude),
+			sweeper:   NewMCPToolSweeper(servers),
 			entry:     MCPEntry{ServerName: "slack", RawEntry: "mcp__slack__post_message"},
 			wantSweep: false,
 		},
 		{
 			name:      "server missing - sweep",
-			sweeper:   NewMCPToolSweeper(servers, noExclude),
+			sweeper:   NewMCPToolSweeper(servers),
 			entry:     MCPEntry{ServerName: "jira", RawEntry: "mcp__jira__create_issue"},
 			wantSweep: true,
 		},
 		{
 			name:      "bare server name exists - keep",
-			sweeper:   NewMCPToolSweeper(servers, noExclude),
+			sweeper:   NewMCPToolSweeper(servers),
 			entry:     MCPEntry{ServerName: "github", RawEntry: "mcp__github"},
 			wantSweep: false,
 		},
 		{
 			name:      "bare server name missing - sweep",
-			sweeper:   NewMCPToolSweeper(servers, noExclude),
+			sweeper:   NewMCPToolSweeper(servers),
 			entry:     MCPEntry{ServerName: "sentry", RawEntry: "mcp__sentry"},
 			wantSweep: true,
 		},
 		{
-			name:      "excluded server missing - keep",
-			sweeper:   NewMCPToolSweeper(MCPServerSet{}, NewMCPExcluder([]string{"jira"})),
-			entry:     MCPEntry{ServerName: "jira", RawEntry: "mcp__jira__create_issue"},
-			wantSweep: false,
-		},
-		{
 			name:      "empty server set sweeps unknown",
-			sweeper:   NewMCPToolSweeper(MCPServerSet{}, noExclude),
+			sweeper:   NewMCPToolSweeper(MCPServerSet{}),
 			entry:     MCPEntry{ServerName: "slack", RawEntry: "mcp__slack__post_message"},
 			wantSweep: true,
 		},

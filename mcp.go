@@ -134,43 +134,20 @@ func loadMCPServersFromClaudeJSON(path string, servers MCPServerSet) error {
 	return nil
 }
 
-// MCPExcluder decides whether an MCP server should be excluded from sweeping.
-type MCPExcluder struct {
-	servers map[string]bool
-}
-
-// NewMCPExcluder builds an MCPExcluder from exclude server names.
-func NewMCPExcluder(excludeServers []string) *MCPExcluder {
-	m := make(map[string]bool, len(excludeServers))
-	for _, s := range excludeServers {
-		m[s] = true
-	}
-	return &MCPExcluder{servers: m}
-}
-
-// IsExcluded reports whether the server name is excluded.
-func (e *MCPExcluder) IsExcluded(serverName string) bool {
-	return e.servers[serverName]
-}
-
 // MCPToolSweeper sweeps MCP tool permission entries whose server
 // is no longer present in the known server set.
 type MCPToolSweeper struct {
-	servers  MCPServerSet
-	excluder *MCPExcluder
+	servers MCPServerSet
 }
 
 // NewMCPToolSweeper creates an MCPToolSweeper.
-func NewMCPToolSweeper(servers MCPServerSet, excluder *MCPExcluder) *MCPToolSweeper {
-	return &MCPToolSweeper{servers: servers, excluder: excluder}
+func NewMCPToolSweeper(servers MCPServerSet) *MCPToolSweeper {
+	return &MCPToolSweeper{servers: servers}
 }
 
 // ShouldSweep evaluates an MCPEntry. Returns Sweep=true when the
-// server is not in the known set and not excluded.
+// server is not in the known set.
 func (m *MCPToolSweeper) ShouldSweep(_ context.Context, entry MCPEntry) ToolSweepResult {
-	if m.excluder.IsExcluded(entry.ServerName) {
-		return ToolSweepResult{}
-	}
 	if m.servers[entry.ServerName] {
 		return ToolSweepResult{}
 	}

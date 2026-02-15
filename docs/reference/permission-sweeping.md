@@ -166,12 +166,3 @@ Both forms are supported:
 
 - `mcp__slack__post_message` (with tool name)
 - `mcp__slack` (bare server reference)
-
-### Exclude Patterns
-
-| Type               | Match method        | Example  |
-| ------------------ | ------------------- | -------- |
-| `exclude_servers`  | Exact server name   | `slack`  |
-
-Excluded servers are always kept regardless of whether
-they appear in the known set.

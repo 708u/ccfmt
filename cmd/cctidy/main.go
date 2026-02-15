@@ -198,14 +198,6 @@ func (c *CLI) bashSweepConfig() (cctidy.BashSweepConfig, bool) {
 	return cctidy.BashSweepConfig{}, false
 }
 
-// mcpSweepConfig returns the MCPSweepConfig for the current CLI.
-func (c *CLI) mcpSweepConfig() cctidy.MCPSweepConfig {
-	if c.cfg == nil {
-		return cctidy.MCPSweepConfig{}
-	}
-	return c.cfg.Sweep.MCP
-}
-
 func (c *CLI) resolveTargets(home string) []targetFile {
 	if c.Target == "" {
 		return c.defaultTargets(home)
@@ -216,7 +208,7 @@ func (c *CLI) resolveTargets(home string) []targetFile {
 		opts = append(opts, cctidy.WithBashSweep(bashCfg))
 	}
 	servers := c.loadMCPServers(home)
-	opts = append(opts, cctidy.WithMCPSweep(c.mcpSweepConfig(), servers))
+	opts = append(opts, cctidy.WithMCPSweep(servers))
 	sweeper := cctidy.NewPermissionSweeper(c.checker, home, opts...)
 	var f Formatter = cctidy.NewSettingsJSONFormatter(sweeper)
 	if filepath.Base(c.Target) == ".claude.json" {
@@ -266,7 +258,7 @@ func (c *CLI) defaultTargets(home string) []targetFile {
 		projectOpts = append(projectOpts, bashOpt)
 	}
 	servers := c.loadMCPServers(home)
-	mcpOpt := cctidy.WithMCPSweep(c.mcpSweepConfig(), servers)
+	mcpOpt := cctidy.WithMCPSweep(servers)
 	globalOpts = append(globalOpts, mcpOpt)
 	projectOpts = append(projectOpts, mcpOpt)
 	globalSettings := cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(c.checker, home, globalOpts...))

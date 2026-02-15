@@ -921,7 +921,7 @@ func TestSweepPermissions(t *testing.T) {
 			},
 		}
 		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{}, servers)).Sweep(t.Context(), obj)
+			WithMCPSweep(servers)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 2 {
 			t.Errorf("allow len = %d, want 2, got %v", len(allow), allow)
@@ -940,7 +940,7 @@ func TestSweepPermissions(t *testing.T) {
 			},
 		}
 		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{}, servers)).Sweep(t.Context(), obj)
+			WithMCPSweep(servers)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("allow len = %d, want 1", len(allow))
@@ -959,7 +959,7 @@ func TestSweepPermissions(t *testing.T) {
 			},
 		}
 		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{}, servers)).Sweep(t.Context(), obj)
+			WithMCPSweep(servers)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow len = %d, want 0, got %v", len(allow), allow)
@@ -978,29 +978,10 @@ func TestSweepPermissions(t *testing.T) {
 			},
 		}
 		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{}, servers)).Sweep(t.Context(), obj)
+			WithMCPSweep(servers)).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 1 {
 			t.Errorf("plugin entry should be kept, got %v", allow)
-		}
-		if result.SweptAllow != 0 {
-			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
-		}
-	})
-
-	t.Run("MCP excluded server kept even when missing", func(t *testing.T) {
-		t.Parallel()
-		servers := MCPServerSet{}
-		obj := map[string]any{
-			"permissions": map[string]any{
-				"allow": []any{"mcp__jira__create_issue"},
-			},
-		}
-		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{ExcludeServers: []string{"jira"}}, servers)).Sweep(t.Context(), obj)
-		allow := obj["permissions"].(map[string]any)["allow"].([]any)
-		if len(allow) != 1 {
-			t.Errorf("excluded server entry should be kept, got %v", allow)
 		}
 		if result.SweptAllow != 0 {
 			t.Errorf("SweptAllow = %d, want 0", result.SweptAllow)
@@ -1016,7 +997,7 @@ func TestSweepPermissions(t *testing.T) {
 			},
 		}
 		result := NewPermissionSweeper(testutil.AllPathsExist{}, "",
-			WithMCPSweep(MCPSweepConfig{}, servers)).Sweep(t.Context(), obj)
+			WithMCPSweep(servers)).Sweep(t.Context(), obj)
 		ask := obj["permissions"].(map[string]any)["ask"].([]any)
 		if len(ask) != 0 {
 			t.Errorf("ask len = %d, want 0", len(ask))
