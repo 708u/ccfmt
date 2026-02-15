@@ -235,8 +235,7 @@ func findProjectRoot(dir string) string {
 }
 
 // loadMCPServers loads known MCP server names from .mcp.json and
-// ~/.claude.json. Errors are printed as warnings; nil is returned
-// on failure so sweep can still proceed conservatively.
+// ~/.claude.json. Errors are printed as warnings.
 func (c *CLI) loadMCPServers() *cctidy.MCPServerSets {
 	servers, err := cctidy.LoadMCPServers(
 		filepath.Join(c.projectRoot, ".mcp.json"),

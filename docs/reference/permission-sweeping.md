@@ -138,14 +138,29 @@ still registered in `.mcp.json` or `~/.claude.json`.
 
 Known servers are collected from two sources:
 
-| Source            | Key path                           |
-| ----------------- | ---------------------------------- |
-| `.mcp.json`       | `mcpServers.<name>`                |
-| `~/.claude.json`  | `mcpServers.<name>`                |
-| `~/.claude.json`  | `projects.<path>.mcpServers.<name>`|
+| Source           | Key path                            |
+| ---------------- | ----------------------------------- |
+| `.mcp.json`      | `mcpServers.<name>`                 |
+| `~/.claude.json` | `mcpServers.<name>`                 |
+| `~/.claude.json` | `projects.<path>.mcpServers.<name>` |
 
-The union of all discovered server names forms the
-known set. Missing files are silently ignored.
+Missing files are silently ignored.
+
+### Scope Separation
+
+Claude Code saves MCP tool permissions to different
+settings files based on the server's definition scope.
+cctidy mirrors this by using a different known set per
+settings file:
+
+| Settings file scope | Known server set              |
+| ------------------- | ----------------------------- |
+| User (`~/.claude/`)  | `~/.claude.json` only        |
+| Project (`.claude/`) | `.mcp.json` + `~/.claude.json` |
+
+User settings only contain entries for servers defined
+in `~/.claude.json`. Project settings can contain
+entries from both `.mcp.json` and `~/.claude.json`.
 
 ### MCP Sweep Logic
 
@@ -154,6 +169,7 @@ An entry is swept when **both** of these are true:
 1. The tool name starts with `mcp__` (but not
    `mcp__plugin_`)
 2. The extracted server name is not in the known set
+   for the target file's scope
 
 Marketplace plugin entries (`mcp__plugin_*`) are always
 kept because they are managed by the plugin system, not
