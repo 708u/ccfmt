@@ -58,11 +58,11 @@ func TestSettingsGolden(t *testing.T) {
 
 	homeDir := filepath.Join(t.TempDir(), "home")
 	baseDir := filepath.Join(t.TempDir(), "project")
-	// Create an agents directory with a dummy agent so the agent set
+	// Create an agents directory with a stub agent so the agent set
 	// is non-empty and unknown agents get swept.
 	agentsDir := filepath.Join(baseDir, ".claude", "agents")
 	os.MkdirAll(agentsDir, 0o755)
-	os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("---\nname: dummy\n---\n# Dummy"), 0o644)
+	os.WriteFile(filepath.Join(agentsDir, "stub.md"), []byte("---\nname: stub\n---\n# Stub"), 0o644)
 	checker := testutil.CheckerFor(
 		"/alive/repo",
 		"/alive/data/file.txt",

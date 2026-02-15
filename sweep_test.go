@@ -985,7 +985,7 @@ func TestSweepPermissions(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".claude", "agents")
 		os.MkdirAll(agentsDir, 0o755)
-		os.WriteFile(filepath.Join(agentsDir, "dummy.md"), []byte("---\nname: dummy\n---\n# Dummy"), 0o644)
+		os.WriteFile(filepath.Join(agentsDir, "stub.md"), []byte("---\nname: stub\n---\n# Stub"), 0o644)
 
 		obj := map[string]any{
 			"permissions": map[string]any{
