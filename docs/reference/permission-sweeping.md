@@ -143,31 +143,34 @@ The following entries are never swept:
   `statusline-setup`
 - **Plugin agents**: specifier contains `:` (e.g.
   `plugin:my-agent`)
-- **Existing agent files**: `.claude/agents/<name>.md`
-  found in either the home directory or the project
-  root
-- **No project context**: when `baseDir` is empty
-  (global settings without project root), entries are
-  kept conservatively
+- **No context**: when neither `homeDir` nor `baseDir`
+  is available, entries are kept conservatively
 
 ### Sweep Logic
 
-An entry is swept when all of these are true:
+Agent lookup is scoped to the settings level:
+
+- **Project-level settings** (`.claude/settings.json`
+  in project): checks only
+  `<project>/.claude/agents/<name>.md`
+- **User-level settings** (`~/.claude/settings.json`):
+  checks only `~/.claude/agents/<name>.md`
+
+An entry is swept when:
 
 1. The agent is not built-in
 2. The specifier does not contain `:` (not a plugin)
-3. No `.md` file exists in home or project agents dir
-4. A project context (`baseDir`) is available
+3. No `.md` file exists in the corresponding agents dir
 
 ### Task Examples
 
-| Entry                         | Result | Reason           |
-| ----------------------------- | ------ | ---------------- |
-| `Task(Explore)`               | kept   | built-in agent   |
-| `Task(plugin:my-agent)`       | kept   | plugin agent     |
-| `Task(my-agent)` (.md exists) | kept   | agent file found |
-| `Task(dead-agent)`            | swept  | agent not found  |
-| `Task(unknown)` (no baseDir)  | kept   | no project ctx   |
+| Entry (project settings)                | Result | Reason           |
+| --------------------------------------- | ------ | ---------------- |
+| `Task(Explore)`                         | kept   | built-in agent   |
+| `Task(plugin:my-agent)`                 | kept   | plugin agent     |
+| `Task(proj-agent)` (.md in project)     | kept   | agent file found |
+| `Task(home-agent)` (.md in home only)   | swept  | not in project   |
+| `Task(dead-agent)`                      | swept  | agent not found  |
 
 ## MCP
 

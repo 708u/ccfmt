@@ -329,28 +329,26 @@ func (t *TaskToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) 
 		return ToolSweepResult{}
 	}
 
-	// Check home agents directory.
-	if t.homeDir != "" {
-		agentPath := filepath.Join(t.homeDir, ".claude", "agents", specifier+".md")
-		if t.checker.Exists(ctx, agentPath) {
-			return ToolSweepResult{}
-		}
-	}
-
-	// Check project agents directory.
+	// Project-level settings: check project agents directory only.
 	if t.baseDir != "" {
 		agentPath := filepath.Join(t.baseDir, ".claude", "agents", specifier+".md")
 		if t.checker.Exists(ctx, agentPath) {
 			return ToolSweepResult{}
 		}
+		return ToolSweepResult{Sweep: true}
 	}
 
-	// No project context — conservative, keep the entry.
-	if t.baseDir == "" {
-		return ToolSweepResult{}
+	// User-level settings (no baseDir): check home agents directory.
+	if t.homeDir != "" {
+		agentPath := filepath.Join(t.homeDir, ".claude", "agents", specifier+".md")
+		if t.checker.Exists(ctx, agentPath) {
+			return ToolSweepResult{}
+		}
+		return ToolSweepResult{Sweep: true}
 	}
 
-	return ToolSweepResult{Sweep: true}
+	// No context available — conservative, keep the entry.
+	return ToolSweepResult{}
 }
 
 // SweepResult holds statistics from permission sweeping.

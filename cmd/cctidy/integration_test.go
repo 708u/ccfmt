@@ -822,7 +822,7 @@ func TestIntegrationBashSweep(t *testing.T) {
 	}
 }
 
-func TestIntegrationTaskSweep(t *testing.T) {
+func TestIntegrationTaskSweepProjectLevel(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
@@ -832,10 +832,10 @@ func TestIntegrationTaskSweep(t *testing.T) {
 	agentsDir := filepath.Join(claudeDir, "agents")
 	os.MkdirAll(agentsDir, 0o755)
 
-	// Create an agent file for alive-agent
+	// Create an agent file for alive-agent in project
 	os.WriteFile(filepath.Join(agentsDir, "alive-agent.md"), []byte("# Alive Agent"), 0o644)
 
-	// Create a home agents directory with a home-agent
+	// Create a home agents directory with a home-agent (not in project)
 	homeAgentsDir := filepath.Join(dir, ".claude", "agents")
 	os.MkdirAll(homeAgentsDir, 0o755)
 	os.WriteFile(filepath.Join(homeAgentsDir, "home-agent.md"), []byte("# Home Agent"), 0o644)
@@ -880,9 +880,9 @@ func TestIntegrationTaskSweep(t *testing.T) {
 	if !strings.Contains(got, `"Task(alive-agent)"`) {
 		t.Error("alive Task(alive-agent) was removed")
 	}
-	// alive agent (home .md) should be kept
-	if !strings.Contains(got, `"Task(home-agent)"`) {
-		t.Error("alive Task(home-agent) was removed")
+	// home-only agent should be swept in project-level settings
+	if strings.Contains(got, `"Task(home-agent)"`) {
+		t.Error("home-only Task(home-agent) was not swept from project settings")
 	}
 	// plugin agent should be kept
 	if !strings.Contains(got, `"Task(plugin:some-agent)"`) {
@@ -904,6 +904,55 @@ func TestIntegrationTaskSweep(t *testing.T) {
 	output := buf.String()
 	if !strings.Contains(output, "Swept:") {
 		t.Errorf("expected swept stats in output: %s", output)
+	}
+}
+
+func TestIntegrationTaskSweepUserLevel(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Create home agents directory with a home-agent
+	homeAgentsDir := filepath.Join(dir, ".claude", "agents")
+	os.MkdirAll(homeAgentsDir, 0o755)
+	os.WriteFile(filepath.Join(homeAgentsDir, "home-agent.md"), []byte("# Home Agent"), 0o644)
+
+	input := `{
+  "permissions": {
+    "allow": [
+      "Task(Explore)",
+      "Task(dead-agent)",
+      "Task(home-agent)",
+      "Task(plugin:some-agent)"
+    ]
+  }
+}`
+	file := filepath.Join(dir, ".claude", "settings.json")
+	os.WriteFile(file, []byte(input), 0o644)
+
+	var buf bytes.Buffer
+	cli := &CLI{Target: file, Verbose: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(file)
+	got := string(data)
+
+	// built-in agent should be kept
+	if !strings.Contains(got, `"Task(Explore)"`) {
+		t.Error("built-in Task(Explore) was removed")
+	}
+	// dead agent should be swept
+	if strings.Contains(got, `"Task(dead-agent)"`) {
+		t.Error("dead Task(dead-agent) was not swept")
+	}
+	// home agent should be kept in user-level settings
+	if !strings.Contains(got, `"Task(home-agent)"`) {
+		t.Error("alive Task(home-agent) was removed from user settings")
+	}
+	// plugin agent should be kept
+	if !strings.Contains(got, `"Task(plugin:some-agent)"`) {
+		t.Error("plugin Task(plugin:some-agent) was removed")
 	}
 }
 

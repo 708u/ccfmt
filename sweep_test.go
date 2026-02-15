@@ -587,13 +587,22 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 			wantSweep: false,
 		},
 		{
-			name: "agent with home .md file is kept",
+			name: "agent with home .md file is kept (user-level)",
+			sweeper: NewTaskToolSweeper(
+				testutil.CheckerFor("/home/user/.claude/agents/my-agent.md"),
+				"/home/user", "",
+			),
+			specifier: "my-agent",
+			wantSweep: false,
+		},
+		{
+			name: "agent with home .md only is swept (project-level)",
 			sweeper: NewTaskToolSweeper(
 				testutil.CheckerFor("/home/user/.claude/agents/my-agent.md"),
 				"/home/user", "/project",
 			),
 			specifier: "my-agent",
-			wantSweep: false,
+			wantSweep: true,
 		},
 		{
 			name: "agent with project .md file is kept",
@@ -611,8 +620,14 @@ func TestTaskToolSweeperShouldSweep(t *testing.T) {
 			wantSweep: true,
 		},
 		{
-			name:      "unknown agent without baseDir is kept",
+			name:      "unknown agent without baseDir is swept (user-level)",
 			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "/home/user", ""),
+			specifier: "unknown",
+			wantSweep: true,
+		},
+		{
+			name:      "unknown agent without homeDir or baseDir is kept",
+			sweeper:   NewTaskToolSweeper(testutil.NoPathsExist{}, "", ""),
 			specifier: "unknown",
 			wantSweep: false,
 		},
