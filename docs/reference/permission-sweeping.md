@@ -14,6 +14,7 @@ silently re-enable a previously blocked action.
 | Edit  | enabled  |
 | Bash  | disabled |
 | Task  | enabled  |
+| Skill | enabled  |
 | MCP   | enabled  |
 
 Bash sweeping requires `--sweep-bash` flag or
@@ -186,6 +187,76 @@ An entry is swept when:
 | `Task(custom-name)` (frontmatter)      | kept   | frontmatter match |
 | `Task(home-agent)` (.md in home only)  | swept  | not in project    |
 | `Task(dead-agent)`                     | swept  | agent not found   |
+
+## Skill
+
+Always active.
+
+Skill entries have the form `Skill(name)` or
+`Skill(name *)`. The sweeper checks whether the
+referenced skill or command still exists.
+
+Claude Code merges custom slash commands into skills.
+Both `.claude/skills/<name>/SKILL.md` and
+`.claude/commands/<name>.md` create the same `/name`
+command. The sweeper checks both directories.
+
+### Always Kept
+
+The following entries are never swept:
+
+- **Plugin skills**: specifier contains `:` (e.g.
+  `plugin:skill-name`)
+- **No context**: when neither `homeDir` nor `baseDir`
+  is available, entries are kept conservatively
+
+### Skill Name Resolution
+
+Skill names are resolved from two sources under the
+`.claude/` directory:
+
+| Source | Path | Name |
+| ------ | ---- | ---- |
+| Skills | `skills/<name>/SKILL.md` | dir name |
+| Commands | `commands/<name>.md` | filename |
+
+For skills, a subdirectory must contain `SKILL.md`
+to be recognized. The subdirectory name is the
+skill name.
+
+For commands, the `.md` extension is stripped to
+produce the skill name.
+
+### Sweep Logic
+
+Skill lookup is scoped to the settings level:
+
+- **Project-level settings** (`.claude/settings.json`
+  in project): scans only
+  `<project>/.claude/skills/` and
+  `<project>/.claude/commands/`
+- **User-level settings** (`~/.claude/settings.json`):
+  scans only `~/.claude/skills/` and
+  `~/.claude/commands/`
+
+For entries with a space (e.g. `Skill(name *)`),
+only the first token before the space is used as
+the skill name.
+
+An entry is swept when:
+
+1. The specifier does not contain `:` (not a plugin)
+2. The skill name does not appear in the resolved set
+
+### Skill Examples
+
+| Entry (project settings) | Result | Reason |
+| --- | --- | --- |
+| `Skill(plugin:name)` | kept | plugin skill |
+| `Skill(review)` (SKILL.md) | kept | skill exists |
+| `Skill(deploy)` (.md cmd) | kept | command exists |
+| `Skill(review *)` | kept | name extracted |
+| `Skill(dead-skill)` | swept | not found |
 
 ## MCP
 
