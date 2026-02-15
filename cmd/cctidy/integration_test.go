@@ -123,8 +123,8 @@ func TestIntegrationPathCleaning(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, Verbose: true, checker: &osPathChecker{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, Verbose: true, checker: &osPathChecker{}, homeDir: dir, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -170,8 +170,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, Verbose: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -198,8 +198,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, DryRun: true, Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, DryRun: true, Verbose: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -226,8 +226,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Backup: true, Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, Backup: true, Verbose: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -258,8 +258,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(`{"z": 1}`), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -276,8 +276,8 @@ func TestRunSingleTarget(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o600)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -290,8 +290,8 @@ func TestRunSingleTarget(t *testing.T) {
 	t.Run("single target file not found error", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		cli := &CLI{Target: "/nonexistent/path/test.json", checker: testutil.AllPathsExist{}, w: &buf}
-		err := cli.Run(t.Context(), "/tmp")
+		cli := &CLI{Target: "/nonexistent/path/test.json", checker: testutil.AllPathsExist{}, homeDir: "/tmp", w: &buf}
+		err := cli.Run(t.Context())
 		if err == nil {
 			t.Fatal("expected error for missing file")
 		}
@@ -317,7 +317,7 @@ func TestRunMultipleTargets(t *testing.T) {
 		os.WriteFile(settingsJSON, []byte(`{"permissions":{"allow":["Write","Read"]}}`), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Verbose: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: claudeJSON, formatter: cctidy.NewClaudeJSONFormatter(testutil.AllPathsExist{})},
 			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -355,7 +355,7 @@ func TestRunMultipleTargets(t *testing.T) {
 		missingFile := filepath.Join(dir, ".claude", "settings.json")
 
 		var buf bytes.Buffer
-		cli := &CLI{Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Verbose: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: claudeJSON, formatter: cctidy.NewClaudeJSONFormatter(testutil.AllPathsExist{})},
 			{path: missingFile, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -379,7 +379,7 @@ func TestRunMultipleTargets(t *testing.T) {
 		os.WriteFile(settingsJSON, []byte(formatted), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Verbose: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: settingsJSON, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
 			{path: filepath.Join(dir, "missing.json"), formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -403,8 +403,8 @@ func TestRunMultipleTargets(t *testing.T) {
 		os.WriteFile(settingsJSON, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: settingsJSON, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: settingsJSON, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -438,8 +438,8 @@ func TestCheck(t *testing.T) {
 		os.WriteFile(file, []byte(formatted), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, w: &buf}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("expected nil, got: %v", err)
 		}
 		if buf.Len() != 0 {
@@ -454,8 +454,8 @@ func TestCheck(t *testing.T) {
 		os.WriteFile(file, []byte(`{"b":1,"a":2}`), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, w: &buf}
-		err := cli.Run(t.Context(), dir)
+		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		err := cli.Run(t.Context())
 		if !errors.Is(err, errUnformatted) {
 			t.Fatalf("expected errUnformatted, got: %v", err)
 		}
@@ -469,8 +469,8 @@ func TestCheck(t *testing.T) {
 		os.WriteFile(file, []byte(input), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, w: &buf}
-		cli.Run(t.Context(), dir)
+		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		cli.Run(t.Context())
 
 		data, _ := os.ReadFile(file)
 		if string(data) != input {
@@ -481,8 +481,8 @@ func TestCheck(t *testing.T) {
 	t.Run("missing file returns error", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		cli := &CLI{Target: "/nonexistent/path/test.json", Check: true, checker: testutil.AllPathsExist{}, w: &buf}
-		err := cli.Run(t.Context(), "/tmp")
+		cli := &CLI{Target: "/nonexistent/path/test.json", Check: true, checker: testutil.AllPathsExist{}, homeDir: "/tmp", w: &buf}
+		err := cli.Run(t.Context())
 		if err == nil {
 			t.Fatal("expected error for missing file")
 		}
@@ -498,8 +498,8 @@ func TestCheck(t *testing.T) {
 		os.WriteFile(file, []byte(`{invalid json`), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, w: &buf}
-		err := cli.Run(t.Context(), dir)
+		cli := &CLI{Target: file, Check: true, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+		err := cli.Run(t.Context())
 		if err == nil {
 			t.Fatal("expected error for invalid JSON")
 		}
@@ -522,7 +522,7 @@ func TestCheckMultipleTargets(t *testing.T) {
 		os.WriteFile(f2, []byte(formatted), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Check: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Check: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
 			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -543,7 +543,7 @@ func TestCheckMultipleTargets(t *testing.T) {
 		os.WriteFile(f2, []byte(unformatted), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Check: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Check: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
 			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -563,7 +563,7 @@ func TestCheckMultipleTargets(t *testing.T) {
 		missing := filepath.Join(dir, "missing.json")
 
 		var buf bytes.Buffer
-		cli := &CLI{Check: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Check: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
 			{path: missing, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -584,7 +584,7 @@ func TestCheckMultipleTargets(t *testing.T) {
 		os.WriteFile(f2, []byte(unformatted), 0o644)
 
 		var buf bytes.Buffer
-		cli := &CLI{Check: true, Verbose: true, checker: testutil.AllPathsExist{}, w: &buf}
+		cli := &CLI{Check: true, Verbose: true, homeDir: dir, checker: testutil.AllPathsExist{}, w: &buf}
 		targets := []targetFile{
 			{path: f1, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
 			{path: f2, formatter: cctidy.NewSettingsJSONFormatter(cctidy.NewPermissionSweeper(testutil.AllPathsExist{}, "", nil))},
@@ -608,8 +608,8 @@ func TestDefaultSilentOutput(t *testing.T) {
 	os.WriteFile(file, []byte(`{"z": 1, "a": 2}`), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, checker: testutil.AllPathsExist{}, homeDir: dir, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -623,8 +623,8 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("with target flag returns single target", func(t *testing.T) {
 		t.Parallel()
-		cli := &CLI{Target: "/some/path.json", checker: testutil.AllPathsExist{}}
-		targets := cli.resolveTargets("/home/user")
+		cli := &CLI{Target: "/some/path.json", checker: testutil.AllPathsExist{}, homeDir: "/home/user"}
+		targets := cli.resolveTargets()
 		if len(targets) != 1 {
 			t.Fatalf("expected 1 target, got %d", len(targets))
 		}
@@ -635,8 +635,8 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("claude.json target uses ClaudeJSONFormatter", func(t *testing.T) {
 		t.Parallel()
-		cli := &CLI{Target: "/home/user/.claude.json", checker: testutil.AllPathsExist{}}
-		targets := cli.resolveTargets("/home/user")
+		cli := &CLI{Target: "/home/user/.claude.json", homeDir: "/home/user", checker: testutil.AllPathsExist{}}
+		targets := cli.resolveTargets()
 		if _, ok := targets[0].formatter.(*cctidy.ClaudeJSONFormatter); !ok {
 			t.Errorf("claude.json should use *cctidy.ClaudeJSONFormatter, got %T", targets[0].formatter)
 		}
@@ -644,8 +644,8 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("settings.json target uses SettingsJSONFormatter", func(t *testing.T) {
 		t.Parallel()
-		cli := &CLI{Target: "/home/user/.claude/settings.json", checker: testutil.AllPathsExist{}}
-		targets := cli.resolveTargets("/home/user")
+		cli := &CLI{Target: "/home/user/.claude/settings.json", homeDir: "/home/user", checker: testutil.AllPathsExist{}}
+		targets := cli.resolveTargets()
 		if _, ok := targets[0].formatter.(*cctidy.SettingsJSONFormatter); !ok {
 			t.Errorf("settings.json should use *cctidy.SettingsJSONFormatter, got %T", targets[0].formatter)
 		}
@@ -653,8 +653,8 @@ func TestResolveTargets(t *testing.T) {
 
 	t.Run("without target returns default targets", func(t *testing.T) {
 		t.Parallel()
-		cli := &CLI{checker: testutil.AllPathsExist{}}
-		targets := cli.resolveTargets("/home/user")
+		cli := &CLI{homeDir: "/home/user", checker: testutil.AllPathsExist{}}
+		targets := cli.resolveTargets()
 		if len(targets) != 5 {
 			t.Fatalf("expected 5 targets, got %d", len(targets))
 		}
@@ -697,8 +697,8 @@ func TestIntegrationSweep(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, Verbose: true, checker: &osPathChecker{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, Verbose: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -767,8 +767,8 @@ func TestIntegrationBashSweep(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, SweepBash: true, Verbose: true, checker: &osPathChecker{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, SweepBash: true, Verbose: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -839,8 +839,8 @@ func TestIntegrationBashSweepDisabledByDefault(t *testing.T) {
 
 	var buf bytes.Buffer
 	// SweepBash is NOT set
-	cli := &CLI{Target: file, Verbose: true, checker: &osPathChecker{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, Verbose: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -868,8 +868,8 @@ func TestSweepCheck(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, Check: true, checker: &osPathChecker{}, w: &buf}
-	err := cli.Run(t.Context(), dir)
+	cli := &CLI{Target: file, Check: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	err := cli.Run(t.Context())
 	if !errors.Is(err, errUnformatted) {
 		t.Fatalf("expected errUnformatted, got: %v", err)
 	}
@@ -913,11 +913,12 @@ exclude_commands = ["mkdir", "touch"]
 			Target:    file,
 			SweepBash: true,
 			Verbose:   true,
+			homeDir:   dir,
 			checker:   &osPathChecker{},
 			cfg:       cfg,
 			w:         &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -969,11 +970,12 @@ exclude_entries = ["install -m 755 `+deadPath+`/bin/app"]
 			Target:    file,
 			SweepBash: true,
 			Verbose:   true,
+			homeDir:   dir,
 			checker:   &osPathChecker{},
 			cfg:       cfg,
 			w:         &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1022,11 +1024,12 @@ exclude_paths = ["`+deadPath+`/opt/"]
 			Target:    file,
 			SweepBash: true,
 			Verbose:   true,
+			homeDir:   dir,
 			checker:   &osPathChecker{},
 			cfg:       cfg,
 			w:         &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1073,11 +1076,12 @@ enabled = true
 		cli := &CLI{
 			Target:  file,
 			Verbose: true,
+			homeDir: dir,
 			checker: &osPathChecker{},
 			cfg:     cfg,
 			w:       &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1121,11 +1125,12 @@ enabled = false
 		cli := &CLI{
 			Target:  file,
 			Verbose: true,
+			homeDir: dir,
 			checker: &osPathChecker{},
 			cfg:     cfg,
 			w:       &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1170,11 +1175,12 @@ enabled = false
 			Target:    file,
 			SweepBash: true,
 			Verbose:   true,
+			homeDir:   dir,
 			checker:   &osPathChecker{},
 			cfg:       cfg,
 			w:         &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1207,11 +1213,12 @@ enabled = false
 		cli := &CLI{
 			Target:  file,
 			Verbose: true,
+			homeDir: dir,
 			checker: &osPathChecker{},
 			cfg:     cfg,
 			w:       &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1240,8 +1247,8 @@ func TestSweepDryRun(t *testing.T) {
 	os.WriteFile(file, []byte(input), 0o644)
 
 	var buf bytes.Buffer
-	cli := &CLI{Target: file, DryRun: true, Verbose: true, checker: &osPathChecker{}, w: &buf}
-	if err := cli.Run(t.Context(), dir); err != nil {
+	cli := &CLI{Target: file, DryRun: true, Verbose: true, homeDir: dir, checker: &osPathChecker{}, w: &buf}
+	if err := cli.Run(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -1286,12 +1293,13 @@ func TestIntegrationProjectConfig(t *testing.T) {
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			cfg:         merged,
 			projectRoot: projectDir,
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1336,12 +1344,13 @@ func TestIntegrationProjectConfig(t *testing.T) {
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			cfg:         merged,
 			projectRoot: projectDir,
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1408,12 +1417,13 @@ exclude_commands = ["cp"]
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			cfg:         merged,
 			projectRoot: filepath.Join(dir, "project"),
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1480,12 +1490,13 @@ exclude_paths = ["vendor/"]
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			cfg:         merged,
 			projectRoot: projectDir,
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1528,12 +1539,13 @@ exclude_paths = ["vendor/"]
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			cfg:         merged,
 			projectRoot: filepath.Join(dir, "project"),
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1585,11 +1597,12 @@ func TestIntegrationMCPSweep(t *testing.T) {
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			projectRoot: projectDir,
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -1659,11 +1672,12 @@ func TestIntegrationMCPSweep(t *testing.T) {
 		cli := &CLI{
 			Target:      file,
 			Verbose:     true,
+			homeDir:     dir,
 			checker:     &osPathChecker{},
 			projectRoot: projectDir,
 			w:           &buf,
 		}
-		if err := cli.Run(t.Context(), dir); err != nil {
+		if err := cli.Run(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
