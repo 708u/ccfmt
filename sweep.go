@@ -377,8 +377,7 @@ type SweepOption func(*sweepConfig)
 type sweepConfig struct {
 	baseDir      string
 	unsafe       bool
-	bashSafe     bool
-	bashSweepCfg BashSweepConfig
+	bashSweepCfg *BashSweepConfig
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
@@ -389,19 +388,11 @@ func WithBaseDir(dir string) SweepOption {
 }
 
 // WithBashConfig sets the BashSweepConfig for exclusion patterns.
-// Bash sweeping is always registered as Unsafe tier; use
-// WithBashSweepSafe to promote it to Safe tier.
-func WithBashConfig(cfg BashSweepConfig) SweepOption {
+// Bash sweeping is always registered as Unsafe tier.
+// When cfg.Enabled is true, Bash is promoted to Safe tier.
+func WithBashConfig(cfg *BashSweepConfig) SweepOption {
 	return func(c *sweepConfig) {
 		c.bashSweepCfg = cfg
-	}
-}
-
-// WithBashSweepSafe marks Bash sweeping as safe tier
-// (always active without --unsafe).
-func WithBashSweepSafe() SweepOption {
-	return func(c *sweepConfig) {
-		c.bashSafe = true
 	}
 }
 
@@ -437,14 +428,18 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	}
 	task := NewTaskToolSweeper(LoadAgentNames(agentsDir))
 
+	var bashCfg BashSweepConfig
+	if cfg.bashSweepCfg != nil {
+		bashCfg = *cfg.bashSweepCfg
+	}
 	bash := &BashToolSweeper{
 		checker:  checker,
 		homeDir:  homeDir,
 		baseDir:  cfg.baseDir,
-		excluder: NewBashExcluder(cfg.bashSweepCfg),
+		excluder: NewBashExcluder(bashCfg),
 	}
 	bashSafety := Unsafe
-	if cfg.bashSafe {
+	if bashCfg.Enabled {
 		bashSafety = Safe
 	}
 

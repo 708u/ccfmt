@@ -186,20 +186,6 @@ func (c *CLI) runTargets(ctx context.Context, targets []targetFile) error {
 	return nil
 }
 
-// bashSweepOpts returns SweepOptions for Bash sweep configuration.
-// Bash is always registered as Unsafe tier in the sweeper;
-// these options set exclude patterns and optionally promote to Safe tier.
-func (c *CLI) bashSweepOpts() []cctidy.SweepOption {
-	if c.cfg == nil {
-		return nil
-	}
-	opts := []cctidy.SweepOption{cctidy.WithBashConfig(c.cfg.Sweep.Bash)}
-	if c.cfg.Sweep.Bash.Enabled {
-		opts = append(opts, cctidy.WithBashSweepSafe())
-	}
-	return opts
-}
-
 func (c *CLI) resolveTargets() []targetFile {
 	if c.Target == "" {
 		return c.defaultTargets()
@@ -213,7 +199,9 @@ func (c *CLI) resolveTargets() []targetFile {
 		baseDir := filepath.Dir(filepath.Dir(c.Target))
 		opts = append(opts, cctidy.WithBaseDir(baseDir))
 	}
-	opts = append(opts, c.bashSweepOpts()...)
+	if c.cfg != nil {
+		opts = append(opts, cctidy.WithBashConfig(&c.cfg.Sweep.Bash))
+	}
 	if c.Unsafe {
 		opts = append(opts, cctidy.WithUnsafe())
 	}
@@ -269,9 +257,11 @@ func (c *CLI) defaultTargets() []targetFile {
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
 	var globalOpts []cctidy.SweepOption
 	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(projectRoot)}
-	bashOpts := c.bashSweepOpts()
-	globalOpts = append(globalOpts, bashOpts...)
-	projectOpts = append(projectOpts, bashOpts...)
+	if c.cfg != nil {
+		bashOpt := cctidy.WithBashConfig(&c.cfg.Sweep.Bash)
+		globalOpts = append(globalOpts, bashOpt)
+		projectOpts = append(projectOpts, bashOpt)
+	}
 	if c.Unsafe {
 		unsafeOpt := cctidy.WithUnsafe()
 		globalOpts = append(globalOpts, unsafeOpt)
