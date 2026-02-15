@@ -34,8 +34,8 @@ func LoadAgentNames(dir string) set.Value[string] {
 		if err != nil {
 			continue
 		}
-		if fmName := md.ParseName(data); fmName != "" {
-			s.Add(fmName)
+		if name := md.ParseName(data); name != "" {
+			s.Add(name)
 		}
 	}
 	return s

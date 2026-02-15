@@ -45,16 +45,7 @@ func loadSkillsDir(dir string, s set.Value[string]) {
 		if !e.IsDir() {
 			continue
 		}
-		skillFile := filepath.Join(dir, e.Name(), "SKILL.md")
-		data, err := os.ReadFile(skillFile)
-		if err != nil {
-			continue
-		}
-		if fmName := md.ParseName(data); fmName != "" {
-			s.Add(fmName)
-		} else {
-			s.Add(e.Name())
-		}
+		addSkillName(s, filepath.Join(dir, e.Name(), "SKILL.md"), e.Name())
 	}
 }
 
@@ -77,16 +68,22 @@ func loadCommandsDir(dir string, s set.Value[string]) {
 		if name == "" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			s.Add(name)
-			continue
-		}
-		if fmName := md.ParseName(data); fmName != "" {
-			s.Add(fmName)
-		} else {
-			s.Add(name)
-		}
+		addSkillName(s, filepath.Join(dir, e.Name()), name)
+	}
+}
+
+// addSkillName reads a markdown file and adds the frontmatter name
+// to the set. Falls back to fallback when the file is
+// unreadable or has no name field.
+func addSkillName(s set.Value[string], path, fallback string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	if name := md.ParseName(data); name != "" {
+		s.Add(name)
+	} else {
+		s.Add(fallback)
 	}
 }
 
@@ -103,6 +100,9 @@ func NewSkillToolSweeper(skills set.Value[string]) *SkillToolSweeper {
 }
 
 func (s *SkillToolSweeper) ShouldSweep(_ context.Context, entry StandardEntry) ToolSweepResult {
+	if s.skills.Len() == 0 {
+		return ToolSweepResult{}
+	}
 	specifier := entry.Specifier
 	// Plugin skills use "plugin:name" convention
 	// and are managed by the plugin system.
@@ -111,9 +111,6 @@ func (s *SkillToolSweeper) ShouldSweep(_ context.Context, entry StandardEntry) T
 	}
 	// Extract name from specifier (e.g. "name *" -> "name").
 	name, _, _ := strings.Cut(specifier, " ")
-	if s.skills.Len() == 0 {
-		return ToolSweepResult{}
-	}
 	if s.skills.Has(name) {
 		return ToolSweepResult{}
 	}
