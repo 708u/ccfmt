@@ -2,6 +2,7 @@ package cctidy
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -262,7 +263,10 @@ type BashToolSweeper struct {
 // NewBashToolSweeper creates a BashToolSweeper.
 // active controls whether sweeping is performed at all;
 // when false, ShouldSweep always returns a zero result.
-func NewBashToolSweeper(checker PathChecker, homeDir, projectDir string, level SettingsLevel, excluder *BashExcluder, active bool) *BashToolSweeper {
+func NewBashToolSweeper(checker PathChecker, homeDir, projectDir string, level SettingsLevel, excluder *BashExcluder, active bool) (*BashToolSweeper, error) {
+	if err := level.validate(); err != nil {
+		return nil, err
+	}
 	return &BashToolSweeper{
 		checker:    checker,
 		homeDir:    homeDir,
@@ -270,7 +274,7 @@ func NewBashToolSweeper(checker PathChecker, homeDir, projectDir string, level S
 		level:      level,
 		excluder:   excluder,
 		active:     active,
-	}
+	}, nil
 }
 
 func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) ToolSweepResult {
@@ -386,6 +390,16 @@ const (
 	ProjectLevel
 )
 
+// validate returns an error if l is not a known SettingsLevel.
+func (l SettingsLevel) validate() error {
+	switch l {
+	case UserLevel, ProjectLevel:
+		return nil
+	default:
+		return fmt.Errorf("invalid SettingsLevel: %d", l)
+	}
+}
+
 // SweepOption configures a PermissionSweeper.
 type SweepOption func(*sweepConfig)
 
@@ -462,11 +476,14 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	if cfg.bashCfg != nil {
 		bashCfg = *cfg.bashCfg
 	}
-	bash := NewBashToolSweeper(
+	bash, err := NewBashToolSweeper(
 		checker, homeDir, cfg.projectDir, cfg.level,
 		NewBashExcluder(bashCfg),
 		bashCfg.Enabled || cfg.unsafe,
 	)
+	if err != nil {
+		panic("cctidy: " + err.Error())
+	}
 
 	tools := map[ToolName]ToolSweeper{
 		ToolRead:  NewToolSweeper(re.ShouldSweep),

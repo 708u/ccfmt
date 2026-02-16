@@ -274,6 +274,15 @@ func TestExtractRelativePaths(t *testing.T) {
 
 var noExcludes = NewBashExcluder(BashPermissionConfig{})
 
+func mustNewBashToolSweeper(t *testing.T, checker PathChecker, homeDir, projectDir string, level SettingsLevel, excluder *BashExcluder, active bool) *BashToolSweeper {
+	t.Helper()
+	s, err := NewBashToolSweeper(checker, homeDir, projectDir, level, excluder, active)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
 func TestBashToolSweeperShouldSweep(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -284,85 +293,85 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 	}{
 		{
 			name:      "all paths dead",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "git -C /dead/repo status",
 			wantSweep: true,
 		},
 		{
 			name:      "one path alive",
-			sweeper:   NewBashToolSweeper(testutil.CheckerFor("/alive/src"), "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.CheckerFor("/alive/src"), "", "", UserLevel, noExcludes, true),
 			specifier: "cp /alive/src /dead/dst",
 			wantSweep: false,
 		},
 		{
 			name:      "no absolute paths keeps entry",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "npm run *",
 			wantSweep: false,
 		},
 		{
 			name:      "all paths alive",
-			sweeper:   NewBashToolSweeper(testutil.AllPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.AllPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "cp /src/a /dst/b",
 			wantSweep: false,
 		},
 		{
 			name:      "multiple dead paths",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "cp /dead/a /dead/b",
 			wantSweep: true,
 		},
 		{
 			name:      "tilde path dead with homeDir",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "/home/user", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "/home/user", "", UserLevel, noExcludes, true),
 			specifier: "cat ~/dead/config",
 			wantSweep: true,
 		},
 		{
 			name:      "tilde path alive with homeDir",
-			sweeper:   NewBashToolSweeper(testutil.CheckerFor("/home/user/alive/config"), "/home/user", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.CheckerFor("/home/user/alive/config"), "/home/user", "", UserLevel, noExcludes, true),
 			specifier: "cat ~/alive/config",
 			wantSweep: false,
 		},
 		{
 			name:      "tilde path without homeDir is skipped",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "cat ~/config",
 			wantSweep: false,
 		},
 		{
 			name:      "dot-slash path dead with projectDir",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "/project", ProjectLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "/project", ProjectLevel, noExcludes, true),
 			specifier: "cat ./src/main.go",
 			wantSweep: true,
 		},
 		{
 			name:      "dot-slash path without projectDir is skipped",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "cat ./src/main.go",
 			wantSweep: false,
 		},
 		{
 			name:      "dot-dot-slash path dead with projectDir",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "/project", ProjectLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "/project", ProjectLevel, noExcludes, true),
 			specifier: "cat ../other/file",
 			wantSweep: true,
 		},
 		{
 			name:      "mixed absolute and relative all dead",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "/home/user", "/project", ProjectLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "/home/user", "/project", ProjectLevel, noExcludes, true),
 			specifier: "cp /dead/src ./dead/dst",
 			wantSweep: true,
 		},
 		{
 			name:      "mixed absolute and relative one alive",
-			sweeper:   NewBashToolSweeper(testutil.CheckerFor("/alive/src"), "/home/user", "/project", ProjectLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.CheckerFor("/alive/src"), "/home/user", "/project", ProjectLevel, noExcludes, true),
 			specifier: "cp /alive/src ./dead/dst",
 			wantSweep: false,
 		},
 		{
 			name:      "only unresolvable relative paths keeps entry",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "cat ./local ../parent ~/home",
 			wantSweep: false,
 		},
@@ -530,19 +539,19 @@ func TestBashToolSweeperWithExcluder(t *testing.T) {
 	}{
 		{
 			name:      "excluded command keeps entry even with dead paths",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, excl, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, excl, true),
 			specifier: "mkdir -p /dead/path",
 			wantSweep: false,
 		},
 		{
 			name:      "non-excluded command with dead paths is swept",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, excl, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, excl, true),
 			specifier: "git -C /dead/repo status",
 			wantSweep: true,
 		},
 		{
 			name:      "empty excluder does not affect sweeping",
-			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
+			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "git -C /dead/repo status",
 			wantSweep: true,
 		},
@@ -557,6 +566,14 @@ func TestBashToolSweeperWithExcluder(t *testing.T) {
 				t.Errorf("ShouldSweep(%q) = %v, want %v", tt.specifier, result.Sweep, tt.wantSweep)
 			}
 		})
+	}
+}
+
+func TestNewBashToolSweeperInvalidLevel(t *testing.T) {
+	t.Parallel()
+	_, err := NewBashToolSweeper(testutil.NoPathsExist{}, "", "", 0, noExcludes, true)
+	if err == nil {
+		t.Fatal("expected error for invalid level, got nil")
 	}
 }
 
