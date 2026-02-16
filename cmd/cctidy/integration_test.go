@@ -84,7 +84,7 @@ func TestSettingsGolden(t *testing.T) {
 	mcpServers := set.New("github")
 	sweeper := cctidy.NewPermissionSweeper(checker, homeDir, mcpServers,
 		cctidy.WithUnsafe(),
-		cctidy.WithBaseDir(baseDir),
+		cctidy.WithProjectLevel(baseDir),
 	)
 	result, err := cctidy.NewSettingsJSONFormatter(sweeper).Format(t.Context(), input)
 	if err != nil {

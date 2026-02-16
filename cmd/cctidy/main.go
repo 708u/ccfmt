@@ -197,7 +197,7 @@ func (c *CLI) resolveTargets() []targetFile {
 	var opts []cctidy.SweepOption
 	if filepath.Dir(c.Target) != filepath.Join(c.homeDir, ".claude") {
 		baseDir := filepath.Dir(filepath.Dir(c.Target))
-		opts = append(opts, cctidy.WithBaseDir(baseDir))
+		opts = append(opts, cctidy.WithProjectLevel(baseDir))
 	}
 	if c.cfg != nil {
 		opts = append(opts, cctidy.WithBashConfig(&c.cfg.Permission.Bash))
@@ -256,7 +256,7 @@ func (c *CLI) defaultTargets() []targetFile {
 	projectRoot := c.projectRoot
 	claude := cctidy.NewClaudeJSONFormatter(c.checker)
 	var globalOpts []cctidy.SweepOption
-	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(projectRoot)}
+	projectOpts := []cctidy.SweepOption{cctidy.WithProjectLevel(projectRoot)}
 	if c.cfg != nil {
 		bashOpt := cctidy.WithBashConfig(&c.cfg.Permission.Bash)
 		globalOpts = append(globalOpts, bashOpt)

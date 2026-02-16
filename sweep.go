@@ -373,19 +373,32 @@ type PermissionSweeper struct {
 	tools map[ToolName]ToolSweeper
 }
 
+// SettingsLevel distinguishes user-level (~/.claude/) from
+// project-level (.claude/) settings. UserLevel is the zero value
+// and acts as the default when no option is specified.
+type SettingsLevel int
+
+const (
+	UserLevel SettingsLevel = iota
+	ProjectLevel
+)
+
 // SweepOption configures a PermissionSweeper.
 type SweepOption func(*sweepConfig)
 
 type sweepConfig struct {
+	level   SettingsLevel
 	baseDir string
 	unsafe  bool
 	bashCfg *BashPermissionConfig
 }
 
-// WithBaseDir sets the base directory for resolving relative path specifiers.
-func WithBaseDir(dir string) SweepOption {
+// WithProjectLevel marks the target as project-level settings and
+// sets the base directory for resolving relative path specifiers.
+func WithProjectLevel(baseDir string) SweepOption {
 	return func(c *sweepConfig) {
-		c.baseDir = dir
+		c.level = ProjectLevel
+		c.baseDir = baseDir
 	}
 }
 
@@ -423,10 +436,15 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	mcp := NewMCPToolSweeper(servers)
 
 	var claudeDir string
-	if cfg.baseDir != "" {
-		claudeDir = filepath.Join(cfg.baseDir, ".claude")
-	} else if homeDir != "" {
-		claudeDir = filepath.Join(homeDir, ".claude")
+	switch cfg.level {
+	case ProjectLevel:
+		if cfg.baseDir != "" {
+			claudeDir = filepath.Join(cfg.baseDir, ".claude")
+		}
+	case UserLevel:
+		if homeDir != "" {
+			claudeDir = filepath.Join(homeDir, ".claude")
+		}
 	}
 
 	var agentsDir string
