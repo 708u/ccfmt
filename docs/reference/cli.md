@@ -60,14 +60,14 @@ If no config files are found, cctidy uses defaults.
 Global config (`~/.config/cctidy/config.toml`):
 
 ```toml
-[sweep.bash]
+[permission.bash]
 exclude_commands = ["mkdir", "touch"]
 ```
 
 Project shared config (`.claude/cctidy.toml`):
 
 ```toml
-[sweep.bash]
+[permission.bash]
 enabled = true
 exclude_paths = ["vendor/"]
 ```
@@ -75,7 +75,7 @@ exclude_paths = ["vendor/"]
 Project local config (`.claude/cctidy.local.toml`):
 
 ```toml
-[sweep.bash]
+[permission.bash]
 exclude_commands = ["ln"]
 ```
 
@@ -85,7 +85,7 @@ Merged result: `enabled = true`,
 
 ### Config Fields
 
-#### `[sweep.bash]`
+#### `[permission.bash]`
 
 | Key                | Type     | Default | Description                |
 | ------------------ | -------- | ------- | -------------------------- |

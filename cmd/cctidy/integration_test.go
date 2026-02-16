@@ -1064,7 +1064,7 @@ func TestIntegrationConfigExclude(t *testing.T) {
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 exclude_commands = ["mkdir", "touch"]
 `), 0o644)
 
@@ -1122,7 +1122,7 @@ exclude_commands = ["mkdir", "touch"]
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 exclude_entries = ["install -m 755 `+deadPath+`/bin/app"]
 `), 0o644)
 
@@ -1176,7 +1176,7 @@ exclude_entries = ["install -m 755 `+deadPath+`/bin/app"]
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 exclude_paths = ["`+deadPath+`/opt/"]
 `), 0o644)
 
@@ -1230,7 +1230,7 @@ exclude_paths = ["`+deadPath+`/opt/"]
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 enabled = true
 `), 0o644)
 
@@ -1279,7 +1279,7 @@ enabled = true
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 enabled = false
 `), 0o644)
 
@@ -1328,7 +1328,7 @@ enabled = false
 		os.MkdirAll(configDir, 0o755)
 		configFile := filepath.Join(configDir, "config.toml")
 		os.WriteFile(configFile, []byte(`
-[sweep.bash]
+[permission.bash]
 enabled = false
 `), 0o644)
 
@@ -1447,7 +1447,7 @@ func TestIntegrationProjectConfig(t *testing.T) {
 		claudeDir := filepath.Join(projectDir, ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"),
-			[]byte("[sweep.bash]\nenabled = true\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = true\n"), 0o644)
 
 		input := `{
   "permissions": {
@@ -1496,9 +1496,9 @@ func TestIntegrationProjectConfig(t *testing.T) {
 		claudeDir := filepath.Join(projectDir, ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"),
-			[]byte("[sweep.bash]\nenabled = true\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = true\n"), 0o644)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.local.toml"),
-			[]byte("[sweep.bash]\nenabled = false\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = false\n"), 0o644)
 
 		input := `{
   "permissions": {
@@ -1548,7 +1548,7 @@ func TestIntegrationProjectConfig(t *testing.T) {
 		os.MkdirAll(globalCfgDir, 0o755)
 		globalCfg := filepath.Join(globalCfgDir, "config.toml")
 		os.WriteFile(globalCfg, []byte(`
-[sweep.bash]
+[permission.bash]
 exclude_commands = ["mkdir"]
 `), 0o644)
 
@@ -1556,14 +1556,14 @@ exclude_commands = ["mkdir"]
 		claudeDir := filepath.Join(dir, "project", ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"), []byte(`
-[sweep.bash]
+[permission.bash]
 enabled = true
 exclude_commands = ["touch"]
 `), 0o644)
 
 		// Project local config: exclude "cp"
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.local.toml"), []byte(`
-[sweep.bash]
+[permission.bash]
 exclude_commands = ["cp"]
 `), 0o644)
 
@@ -1641,7 +1641,7 @@ exclude_commands = ["cp"]
 		deadPath := filepath.Join(excludedDir, "dead-file")
 
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"), []byte(`
-[sweep.bash]
+[permission.bash]
 enabled = true
 exclude_paths = ["vendor/"]
 `), 0o644)
@@ -1745,7 +1745,7 @@ func TestIntegrationBashSafeTierViaConfig(t *testing.T) {
 	os.MkdirAll(claudeDir, 0o755)
 
 	os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"),
-		[]byte("[sweep.bash]\nenabled = true\n"), 0o644)
+		[]byte("[permission.bash]\nenabled = true\n"), 0o644)
 
 	input := `{
   "permissions": {

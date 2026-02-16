@@ -272,7 +272,7 @@ func TestExtractRelativePaths(t *testing.T) {
 	}
 }
 
-var noExcludes = NewBashExcluder(BashSweepConfig{})
+var noExcludes = NewBashExcluder(BashPermissionConfig{})
 
 func TestBashToolSweeperShouldSweep(t *testing.T) {
 	t.Parallel()
@@ -383,7 +383,7 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 func TestBashExcluderIsExcluded(t *testing.T) {
 	t.Parallel()
 
-	excl := NewBashExcluder(BashSweepConfig{
+	excl := NewBashExcluder(BashPermissionConfig{
 		ExcludeEntries:  []string{"mkdir -p /opt/myapp/logs", "touch /opt/myapp/.initialized"},
 		ExcludeCommands: []string{"mkdir", "touch", "ln"},
 		ExcludePaths:    []string{"/opt/myapp/", "/var/log/myapp/"},
@@ -473,7 +473,7 @@ func TestBashExcluderIsExcluded(t *testing.T) {
 
 func TestBashExcluderPathBoundary(t *testing.T) {
 	t.Parallel()
-	excl := NewBashExcluder(BashSweepConfig{
+	excl := NewBashExcluder(BashPermissionConfig{
 		ExcludePaths: []string{"/home/user"},
 	})
 	tests := []struct {
@@ -509,7 +509,7 @@ func TestBashExcluderPathBoundary(t *testing.T) {
 
 func TestBashExcluderEmpty(t *testing.T) {
 	t.Parallel()
-	excl := NewBashExcluder(BashSweepConfig{})
+	excl := NewBashExcluder(BashPermissionConfig{})
 	if excl.IsExcluded("git -C /dead/repo status", extractAbsolutePaths("git -C /dead/repo status")) {
 		t.Error("empty excluder should not exclude anything")
 	}
@@ -518,7 +518,7 @@ func TestBashExcluderEmpty(t *testing.T) {
 func TestBashToolSweeperWithExcluder(t *testing.T) {
 	t.Parallel()
 
-	excl := NewBashExcluder(BashSweepConfig{
+	excl := NewBashExcluder(BashPermissionConfig{
 		ExcludeCommands: []string{"mkdir"},
 	})
 
@@ -1301,7 +1301,7 @@ func TestSweepPermissions(t *testing.T) {
 				},
 			},
 		}
-		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithBashConfig(&BashSweepConfig{Enabled: true})).Sweep(t.Context(), obj)
+		result := NewPermissionSweeper(testutil.NoPathsExist{}, "", nil, WithBashConfig(&BashPermissionConfig{Enabled: true})).Sweep(t.Context(), obj)
 		allow := obj["permissions"].(map[string]any)["allow"].([]any)
 		if len(allow) != 0 {
 			t.Errorf("allow len = %d, want 0, got %v", len(allow), allow)

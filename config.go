@@ -11,18 +11,18 @@ import (
 
 // Config holds the cctidy configuration loaded from TOML.
 type Config struct {
-	Sweep SweepToolConfig `toml:"sweep"`
+	Permission PermissionConfig `toml:"permission"`
 }
 
-// SweepToolConfig groups per-tool sweep settings.
-type SweepToolConfig struct {
+// PermissionConfig groups per-tool permission sweep settings.
+type PermissionConfig struct {
 	// Bash configures sweeping for Bash permission entries.
 	// "bash" corresponds to the Bash tool name in Claude Code permissions.
-	Bash BashSweepConfig `toml:"bash"`
+	Bash BashPermissionConfig `toml:"bash"`
 }
 
-// BashSweepConfig controls Bash permission entry sweeping.
-type BashSweepConfig struct {
+// BashPermissionConfig controls Bash permission entry sweeping.
+type BashPermissionConfig struct {
 	// Enabled turns on Bash sweep when true.
 	Enabled bool `toml:"enabled"`
 
@@ -37,20 +37,20 @@ type BashSweepConfig struct {
 	ExcludePaths []string `toml:"exclude_paths"`
 }
 
-// rawBashSweepConfig uses *bool to distinguish "unset" from "false".
-type rawBashSweepConfig struct {
+// rawBashPermissionConfig uses *bool to distinguish "unset" from "false".
+type rawBashPermissionConfig struct {
 	Enabled         *bool    `toml:"enabled"`
 	ExcludeEntries  []string `toml:"exclude_entries"`
 	ExcludeCommands []string `toml:"exclude_commands"`
 	ExcludePaths    []string `toml:"exclude_paths"`
 }
 
-type rawSweepToolConfig struct {
-	Bash rawBashSweepConfig `toml:"bash"`
+type rawPermissionConfig struct {
+	Bash rawBashPermissionConfig `toml:"bash"`
 }
 
 type rawConfig struct {
-	Sweep rawSweepToolConfig `toml:"sweep"`
+	Permission rawPermissionConfig `toml:"permission"`
 }
 
 // defaultConfigPath returns ~/.config/cctidy/config.toml.
@@ -83,12 +83,12 @@ func loadRawConfig(path string) (rawConfig, error) {
 // rawToConfig converts a rawConfig to the public Config type.
 func rawToConfig(raw rawConfig) *Config {
 	cfg := &Config{}
-	if raw.Sweep.Bash.Enabled != nil {
-		cfg.Sweep.Bash.Enabled = *raw.Sweep.Bash.Enabled
+	if raw.Permission.Bash.Enabled != nil {
+		cfg.Permission.Bash.Enabled = *raw.Permission.Bash.Enabled
 	}
-	cfg.Sweep.Bash.ExcludeEntries = raw.Sweep.Bash.ExcludeEntries
-	cfg.Sweep.Bash.ExcludeCommands = raw.Sweep.Bash.ExcludeCommands
-	cfg.Sweep.Bash.ExcludePaths = raw.Sweep.Bash.ExcludePaths
+	cfg.Permission.Bash.ExcludeEntries = raw.Permission.Bash.ExcludeEntries
+	cfg.Permission.Bash.ExcludeCommands = raw.Permission.Bash.ExcludeCommands
+	cfg.Permission.Bash.ExcludePaths = raw.Permission.Bash.ExcludePaths
 	return cfg
 }
 
@@ -113,18 +113,18 @@ func mergeRawConfigs(base, overlay rawConfig) rawConfig {
 	merged := rawConfig{}
 
 	// Enabled: overlay wins if explicitly set
-	if overlay.Sweep.Bash.Enabled != nil {
-		merged.Sweep.Bash.Enabled = overlay.Sweep.Bash.Enabled
+	if overlay.Permission.Bash.Enabled != nil {
+		merged.Permission.Bash.Enabled = overlay.Permission.Bash.Enabled
 	} else {
-		merged.Sweep.Bash.Enabled = base.Sweep.Bash.Enabled
+		merged.Permission.Bash.Enabled = base.Permission.Bash.Enabled
 	}
 
-	merged.Sweep.Bash.ExcludeEntries = unionStrings(
-		base.Sweep.Bash.ExcludeEntries, overlay.Sweep.Bash.ExcludeEntries)
-	merged.Sweep.Bash.ExcludeCommands = unionStrings(
-		base.Sweep.Bash.ExcludeCommands, overlay.Sweep.Bash.ExcludeCommands)
-	merged.Sweep.Bash.ExcludePaths = unionStrings(
-		base.Sweep.Bash.ExcludePaths, overlay.Sweep.Bash.ExcludePaths)
+	merged.Permission.Bash.ExcludeEntries = unionStrings(
+		base.Permission.Bash.ExcludeEntries, overlay.Permission.Bash.ExcludeEntries)
+	merged.Permission.Bash.ExcludeCommands = unionStrings(
+		base.Permission.Bash.ExcludeCommands, overlay.Permission.Bash.ExcludeCommands)
+	merged.Permission.Bash.ExcludePaths = unionStrings(
+		base.Permission.Bash.ExcludePaths, overlay.Permission.Bash.ExcludePaths)
 
 	return merged
 }
@@ -176,27 +176,27 @@ func MergeConfig(base *Config, project rawConfig, projectRoot string) *Config {
 	merged := &Config{}
 
 	// Enabled: project wins if explicitly set
-	if project.Sweep.Bash.Enabled != nil {
-		merged.Sweep.Bash.Enabled = *project.Sweep.Bash.Enabled
+	if project.Permission.Bash.Enabled != nil {
+		merged.Permission.Bash.Enabled = *project.Permission.Bash.Enabled
 	} else {
-		merged.Sweep.Bash.Enabled = base.Sweep.Bash.Enabled
+		merged.Permission.Bash.Enabled = base.Permission.Bash.Enabled
 	}
 
-	merged.Sweep.Bash.ExcludeEntries = unionStrings(
-		base.Sweep.Bash.ExcludeEntries, project.Sweep.Bash.ExcludeEntries)
-	merged.Sweep.Bash.ExcludeCommands = unionStrings(
-		base.Sweep.Bash.ExcludeCommands, project.Sweep.Bash.ExcludeCommands)
+	merged.Permission.Bash.ExcludeEntries = unionStrings(
+		base.Permission.Bash.ExcludeEntries, project.Permission.Bash.ExcludeEntries)
+	merged.Permission.Bash.ExcludeCommands = unionStrings(
+		base.Permission.Bash.ExcludeCommands, project.Permission.Bash.ExcludeCommands)
 
 	// Resolve relative paths in project config against projectRoot
-	resolvedPaths := make([]string, 0, len(project.Sweep.Bash.ExcludePaths))
-	for _, p := range project.Sweep.Bash.ExcludePaths {
+	resolvedPaths := make([]string, 0, len(project.Permission.Bash.ExcludePaths))
+	for _, p := range project.Permission.Bash.ExcludePaths {
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(projectRoot, p)
 		}
 		resolvedPaths = append(resolvedPaths, p)
 	}
-	merged.Sweep.Bash.ExcludePaths = unionStrings(
-		base.Sweep.Bash.ExcludePaths, resolvedPaths)
+	merged.Permission.Bash.ExcludePaths = unionStrings(
+		base.Permission.Bash.ExcludePaths, resolvedPaths)
 
 	return merged
 }

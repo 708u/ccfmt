@@ -26,7 +26,7 @@ intentional entries, so it defaults to opt-in.
 Two mechanisms:
 
 1. **CLI flag**: `--unsafe` enables all unsafe sweepers
-2. **Config file**: `[sweep.bash] enabled = true`
+2. **Config file**: `[permission.bash] enabled = true`
    promotes Bash to safe tier (always active)
 
 ### Priority
