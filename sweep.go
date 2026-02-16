@@ -264,7 +264,7 @@ type BashToolSweeper struct {
 // active controls whether sweeping is performed at all;
 // when false, ShouldSweep always returns a zero result.
 func NewBashToolSweeper(checker PathChecker, homeDir, projectDir string, level SettingsLevel, excluder *BashExcluder, active bool) (*BashToolSweeper, error) {
-	if err := level.validate(); err != nil {
+	if err := level.valid(); err != nil {
 		return nil, err
 	}
 	return &BashToolSweeper{
@@ -390,8 +390,8 @@ const (
 	ProjectLevel
 )
 
-// validate returns an error if l is not a known SettingsLevel.
-func (l SettingsLevel) validate() error {
+// valid returns an error if l is not a known SettingsLevel.
+func (l SettingsLevel) valid() error {
 	switch l {
 	case UserLevel, ProjectLevel:
 		return nil
@@ -438,7 +438,7 @@ func WithUnsafe() SweepOption {
 // NewPermissionSweeper creates a PermissionSweeper.
 // homeDir is required for resolving ~/path specifiers.
 // servers is the set of known MCP server names for MCP sweep.
-func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value[string], opts ...SweepOption) *PermissionSweeper {
+func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value[string], opts ...SweepOption) (*PermissionSweeper, error) {
 	cfg := sweepConfig{level: UserLevel}
 	for _, o := range opts {
 		o(&cfg)
@@ -482,7 +482,7 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 		bashCfg.Enabled || cfg.unsafe,
 	)
 	if err != nil {
-		panic("cctidy: " + err.Error())
+		return nil, fmt.Errorf("NewPermissionSweeper: %w", err)
 	}
 
 	tools := map[ToolName]ToolSweeper{
@@ -494,7 +494,7 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 		ToolSkill: NewToolSweeper(skill.ShouldSweep),
 	}
 
-	return &PermissionSweeper{tools: tools}
+	return &PermissionSweeper{tools: tools}, nil
 }
 
 // Sweep removes stale allow/ask permission entries from obj.
