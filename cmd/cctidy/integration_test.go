@@ -58,33 +58,33 @@ func TestSettingsGolden(t *testing.T) {
 	}
 
 	homeDir := filepath.Join(t.TempDir(), "home")
-	baseDir := filepath.Join(t.TempDir(), "project")
+	projectDir := filepath.Join(t.TempDir(), "project")
 	// Create an agents directory with a stub agent so the agent set
 	// is non-empty and unknown agents get swept.
-	agentsDir := filepath.Join(baseDir, ".claude", "agents")
+	agentsDir := filepath.Join(projectDir, ".claude", "agents")
 	os.MkdirAll(agentsDir, 0o755)
 	os.WriteFile(filepath.Join(agentsDir, "stub.md"), []byte("---\nname: stub\n---\n# Stub"), 0o644)
 	// Create a skills directory with a stub skill and a commands
 	// directory with a stub command so the skill set is non-empty.
-	skillsDir := filepath.Join(baseDir, ".claude", "skills", "stub-skill")
+	skillsDir := filepath.Join(projectDir, ".claude", "skills", "stub-skill")
 	os.MkdirAll(skillsDir, 0o755)
 	os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte("# Stub Skill"), 0o644)
-	commandsDir := filepath.Join(baseDir, ".claude", "commands")
+	commandsDir := filepath.Join(projectDir, ".claude", "commands")
 	os.MkdirAll(commandsDir, 0o755)
 	os.WriteFile(filepath.Join(commandsDir, "stub-cmd.md"), []byte("# Stub Command"), 0o644)
 	checker := testutil.CheckerFor(
 		"/alive/repo",
 		"/alive/data/file.txt",
-		filepath.Join(baseDir, "bin/run"),
+		filepath.Join(projectDir, "bin/run"),
 		filepath.Join(homeDir, "config.json"),
 		filepath.Join(homeDir, "alive/notes.md"),
-		filepath.Join(baseDir, "src/alive.go"),
-		filepath.Join(baseDir, "../alive/output.txt"),
+		filepath.Join(projectDir, "src/alive.go"),
+		filepath.Join(projectDir, "../alive/output.txt"),
 	)
 	mcpServers := set.New("github")
 	sweeper := cctidy.NewPermissionSweeper(checker, homeDir, mcpServers,
 		cctidy.WithUnsafe(),
-		cctidy.WithProjectLevel(baseDir),
+		cctidy.WithProjectLevel(projectDir),
 	)
 	result, err := cctidy.NewSettingsJSONFormatter(sweeper).Format(t.Context(), input)
 	if err != nil {
@@ -743,7 +743,7 @@ func TestIntegrationBashSweep(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create project structure: dir/project/.claude/settings.json
-	// This gives baseDir = dir/project, homeDir = dir
+	// This gives projectDir = dir/project, homeDir = dir
 	projectDir := filepath.Join(dir, "project")
 	claudeDir := filepath.Join(projectDir, ".claude")
 	os.MkdirAll(claudeDir, 0o755)

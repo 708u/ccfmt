@@ -331,19 +331,19 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 			wantSweep: false,
 		},
 		{
-			name:      "dot-slash path dead with baseDir",
+			name:      "dot-slash path dead with projectDir",
 			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "/project", noExcludes, true),
 			specifier: "cat ./src/main.go",
 			wantSweep: true,
 		},
 		{
-			name:      "dot-slash path without baseDir is skipped",
+			name:      "dot-slash path without projectDir is skipped",
 			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "", noExcludes, true),
 			specifier: "cat ./src/main.go",
 			wantSweep: false,
 		},
 		{
-			name:      "dot-dot-slash path dead with baseDir",
+			name:      "dot-dot-slash path dead with projectDir",
 			sweeper:   NewBashToolSweeper(testutil.NoPathsExist{}, "", "/project", noExcludes, true),
 			specifier: "cat ../other/file",
 			wantSweep: true,
@@ -687,13 +687,13 @@ func TestReadEditToolSweeperShouldSweep(t *testing.T) {
 			wantSweep: false,
 		},
 		{
-			name:      "relative path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, baseDir: "/project"},
+			name:      "relative path with projectDir is resolved",
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, projectDir: "/project"},
 			specifier: "./src/main.go",
 			wantSweep: true,
 		},
 		{
-			name:      "relative path without baseDir is skipped",
+			name:      "relative path without projectDir is skipped",
 			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}},
 			specifier: "./src/main.go",
 			wantSweep: false,
@@ -705,14 +705,14 @@ func TestReadEditToolSweeperShouldSweep(t *testing.T) {
 			wantSweep: false,
 		},
 		{
-			name:      "parent-relative path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, baseDir: "/project"},
+			name:      "parent-relative path with projectDir is resolved",
+			sweeper:   ReadEditToolSweeper{checker: testutil.NoPathsExist{}, projectDir: "/project"},
 			specifier: "../other/file.go",
 			wantSweep: true,
 		},
 		{
-			name:      "slash-prefixed path with baseDir is resolved",
-			sweeper:   ReadEditToolSweeper{checker: testutil.CheckerFor("/project/src/file.go"), baseDir: "/project"},
+			name:      "slash-prefixed path with projectDir is resolved",
+			sweeper:   ReadEditToolSweeper{checker: testutil.CheckerFor("/project/src/file.go"), projectDir: "/project"},
 			specifier: "/src/file.go",
 			wantSweep: false,
 		},
@@ -773,14 +773,14 @@ func TestSweepPermissions(t *testing.T) {
 			wantSweptAllow: 0,
 		},
 		{
-			name:           "relative path without baseDir is kept",
+			name:           "relative path without projectDir is kept",
 			entries:        []any{"Edit(/src/file.go)"},
 			checker:        testutil.NoPathsExist{},
 			wantAllowLen:   1,
 			wantSweptAllow: 0,
 		},
 		{
-			name:           "relative path with baseDir is swept when dead",
+			name:           "relative path with projectDir is swept when dead",
 			entries:        []any{"Edit(./src/file.go)"},
 			checker:        testutil.NoPathsExist{},
 			opts:           []SweepOption{WithProjectLevel("/project")},
@@ -836,7 +836,7 @@ func TestSweepPermissions(t *testing.T) {
 		})
 	}
 
-	t.Run("relative path with baseDir is kept when exists", func(t *testing.T) {
+	t.Run("relative path with projectDir is kept when exists", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		os.WriteFile(filepath.Join(dir, "file.go"), []byte(""), 0o644)
@@ -947,7 +947,7 @@ func TestSweepPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("bash entries with dot-slash path swept when baseDir set and dead", func(t *testing.T) {
+	t.Run("bash entries with dot-slash path swept when projectDir set and dead", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{
@@ -1119,7 +1119,7 @@ func TestSweepPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("bash entries with relative path kept when no baseDir", func(t *testing.T) {
+	t.Run("bash entries with relative path kept when no projectDir", func(t *testing.T) {
 		t.Parallel()
 		obj := map[string]any{
 			"permissions": map[string]any{

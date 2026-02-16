@@ -96,12 +96,12 @@ for existence.
 | --------- | ---------------------------- | -------- |
 | `//path`  | Strip leading `/` -> `/path` | (none)   |
 | `~/path`  | Join with home directory     | homeDir  |
-| `/path`   | Join with base directory     | baseDir  |
-| `./path`  | Join with base directory     | baseDir  |
-| `../path` | Join with base directory     | baseDir  |
+| `/path`   | Join with base directory     | projectDir  |
+| `./path`  | Join with base directory     | projectDir  |
+| `../path` | Join with base directory     | projectDir  |
 
 - `homeDir` is the user's home directory
-- `baseDir` is the project root for project-level
+- `projectDir` is the project root for project-level
   settings, or empty for global settings
 
 ### Skipped Entries
@@ -109,7 +109,7 @@ for existence.
 The following entries are always kept:
 
 - Contains glob characters (`*`, `?`, `[`)
-- Required directory (homeDir or baseDir) is not set
+- Required directory (homeDir or projectDir) is not set
 - Path exists on the filesystem
 
 ## Bash
@@ -138,8 +138,8 @@ and `~/path` prefixes. Bare relative paths
 | --------- | ------------------------ | -------- |
 | `/path`   | Used as-is (absolute)    | (none)   |
 | `~/path`  | Join with home directory | homeDir  |
-| `./path`  | Join with base directory | baseDir  |
-| `../path` | Join with base directory | baseDir  |
+| `./path`  | Join with base directory | projectDir  |
+| `../path` | Join with base directory | projectDir  |
 
 Paths whose required directory is not set are
 excluded from evaluation (treated as unresolvable).
@@ -165,7 +165,7 @@ the entry is kept.
 | `Bash(git -C /dead/repo status)`      | swept  | all paths dead       |
 | `Bash(cp /alive/src /dead/dst)`       | kept   | `/alive/src` exists  |
 | `Bash(npm run *)`                     | kept   | no extractable paths |
-| `Bash(cat ./dead/file)` (no baseDir)  | kept   | path unresolvable    |
+| `Bash(cat ./dead/file)` (no projectDir)  | kept   | path unresolvable    |
 
 ### Exclude Patterns
 
@@ -203,7 +203,7 @@ The following entries are never swept:
   `statusline-setup`
 - **Plugin agents**: specifier contains `:` (e.g.
   `plugin:my-agent`)
-- **No context**: when neither `homeDir` nor `baseDir`
+- **No context**: when neither `homeDir` nor `projectDir`
   is available, entries are kept conservatively
 
 ### Agent Name Resolution
@@ -265,7 +265,7 @@ The following entries are never swept:
 
 - **Plugin skills**: specifier contains `:` (e.g.
   `plugin:skill-name`)
-- **No context**: when neither `homeDir` nor `baseDir`
+- **No context**: when neither `homeDir` nor `projectDir`
   is available, entries are kept conservatively
 
 ### Skill Name Resolution

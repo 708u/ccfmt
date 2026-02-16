@@ -124,12 +124,12 @@ var builtinAgents = set.New(
 //   - glob (*, ?, [)  → skip (kept unchanged)
 //   - //path          → /path  (absolute; always resolvable)
 //   - ~/path          → homeDir/path (requires homeDir)
-//   - /path           → project root relative (requires baseDir)
-//   - ./path, ../path, bare path → cwd relative (requires baseDir)
+//   - /path           → project root relative (requires projectDir)
+//   - ./path, ../path, bare path → cwd relative (requires projectDir)
 type ReadEditToolSweeper struct {
-	checker PathChecker
-	homeDir string
-	baseDir string
+	checker    PathChecker
+	homeDir    string
+	projectDir string
 }
 
 // containsGlob reports whether s contains glob metacharacters.
@@ -154,10 +154,10 @@ func (r *ReadEditToolSweeper) ShouldSweep(ctx context.Context, entry StandardEnt
 		rest, _ := strings.CutPrefix(specifier, "~/")
 		resolved = filepath.Join(r.homeDir, rest)
 	default: // /path, ./path, ../path, bare path — all project-relative
-		if r.baseDir == "" {
+		if r.projectDir == "" {
 			return ToolSweepResult{}
 		}
-		resolved = filepath.Join(r.baseDir, specifier)
+		resolved = filepath.Join(r.projectDir, specifier)
 	}
 
 	if !r.checker.Exists(ctx, resolved) {
@@ -250,23 +250,23 @@ func (e *BashExcluder) IsExcluded(specifier string, absPaths []string) bool {
 // resolvable paths in the specifier are non-existent.
 // Entries with no resolvable paths or at least one existing path are kept.
 type BashToolSweeper struct {
-	checker  PathChecker
-	homeDir  string
-	baseDir  string
-	excluder *BashExcluder
-	active   bool
+	checker    PathChecker
+	homeDir    string
+	projectDir string
+	excluder   *BashExcluder
+	active     bool
 }
 
 // NewBashToolSweeper creates a BashToolSweeper.
 // active controls whether sweeping is performed at all;
 // when false, ShouldSweep always returns a zero result.
-func NewBashToolSweeper(checker PathChecker, homeDir, baseDir string, excluder *BashExcluder, active bool) *BashToolSweeper {
+func NewBashToolSweeper(checker PathChecker, homeDir, projectDir string, excluder *BashExcluder, active bool) *BashToolSweeper {
 	return &BashToolSweeper{
-		checker:  checker,
-		homeDir:  homeDir,
-		baseDir:  baseDir,
-		excluder: excluder,
-		active:   active,
+		checker:    checker,
+		homeDir:    homeDir,
+		projectDir: projectDir,
+		excluder:   excluder,
+		active:     active,
 	}
 }
 
@@ -293,10 +293,10 @@ func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) 
 			rest, _ := strings.CutPrefix(p, "~/")
 			resolved = append(resolved, filepath.Join(b.homeDir, rest))
 		case strings.HasPrefix(p, "./") || strings.HasPrefix(p, "../"):
-			if b.baseDir == "" {
+			if b.projectDir == "" {
 				continue
 			}
-			resolved = append(resolved, filepath.Join(b.baseDir, p))
+			resolved = append(resolved, filepath.Join(b.projectDir, p))
 		}
 	}
 
@@ -387,18 +387,18 @@ const (
 type SweepOption func(*sweepConfig)
 
 type sweepConfig struct {
-	level   SettingsLevel
-	baseDir string
-	unsafe  bool
-	bashCfg *BashPermissionConfig
+	level      SettingsLevel
+	projectDir string
+	unsafe     bool
+	bashCfg    *BashPermissionConfig
 }
 
 // WithProjectLevel marks the target as project-level settings and
 // sets the base directory for resolving relative path specifiers.
-func WithProjectLevel(baseDir string) SweepOption {
+func WithProjectLevel(projectDir string) SweepOption {
 	return func(c *sweepConfig) {
 		c.level = ProjectLevel
-		c.baseDir = baseDir
+		c.projectDir = projectDir
 	}
 }
 
@@ -428,9 +428,9 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	}
 
 	re := &ReadEditToolSweeper{
-		checker: checker,
-		homeDir: homeDir,
-		baseDir: cfg.baseDir,
+		checker:    checker,
+		homeDir:    homeDir,
+		projectDir: cfg.projectDir,
 	}
 
 	mcp := NewMCPToolSweeper(servers)
@@ -438,8 +438,8 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	var claudeDir string
 	switch cfg.level {
 	case ProjectLevel:
-		if cfg.baseDir != "" {
-			claudeDir = filepath.Join(cfg.baseDir, ".claude")
+		if cfg.projectDir != "" {
+			claudeDir = filepath.Join(cfg.projectDir, ".claude")
 		}
 	case UserLevel:
 		if homeDir != "" {
@@ -459,7 +459,7 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 		bashCfg = *cfg.bashCfg
 	}
 	bash := NewBashToolSweeper(
-		checker, homeDir, cfg.baseDir,
+		checker, homeDir, cfg.projectDir,
 		NewBashExcluder(bashCfg),
 		bashCfg.Enabled || cfg.unsafe,
 	)

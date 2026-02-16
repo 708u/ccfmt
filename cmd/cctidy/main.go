@@ -196,8 +196,8 @@ func (c *CLI) resolveTargets() []targetFile {
 	}
 	var opts []cctidy.SweepOption
 	if filepath.Dir(c.Target) != filepath.Join(c.homeDir, ".claude") {
-		baseDir := filepath.Dir(filepath.Dir(c.Target))
-		opts = append(opts, cctidy.WithProjectLevel(baseDir))
+		projectDir := filepath.Dir(filepath.Dir(c.Target))
+		opts = append(opts, cctidy.WithProjectLevel(projectDir))
 	}
 	if c.cfg != nil {
 		opts = append(opts, cctidy.WithBashConfig(&c.cfg.Permission.Bash))

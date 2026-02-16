@@ -3,12 +3,12 @@
 ## Summary
 
 Introduce `SettingsLevel` type to replace the implicit
-`baseDir == ""` convention for distinguishing user-level
+`projectDir == ""` convention for distinguishing user-level
 and project-level settings.
 
 ## Motivation
 
-The sweeper uses `baseDir` emptiness to decide whether
+The sweeper uses `projectDir` emptiness to decide whether
 to scan `~/.claude/` or `<project>/.claude/` for agents,
 skills, and commands. This is an implicit convention
 that is not self-documenting.
@@ -19,9 +19,9 @@ that is not self-documenting.
   `ProjectLevel`
 - Replace `WithBaseDir(dir)` with
   `WithProjectLevel(dir)` which sets both `level` and
-  `baseDir`
+  `projectDir`
 - `UserLevel` is the default (no option needed)
-- `baseDir` remains in `sweepConfig` for path resolution
+- `projectDir` remains in `sweepConfig` for path resolution
   by `ReadEditToolSweeper` and `BashToolSweeper`
 - `level` is used only in `NewPermissionSweeper` for
   `claudeDir` derivation
@@ -38,7 +38,7 @@ that is not self-documenting.
 ## Unchanged
 
 - `ReadEditToolSweeper` / `BashToolSweeper` (use
-  `baseDir` only)
+  `projectDir` only)
 - `TaskToolSweeper` / `SkillToolSweeper` /
   `MCPToolSweeper`
 - `NewBashToolSweeper` signature
