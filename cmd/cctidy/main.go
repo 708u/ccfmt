@@ -200,7 +200,7 @@ func (c *CLI) resolveTargets() []targetFile {
 		opts = append(opts, cctidy.WithBaseDir(baseDir))
 	}
 	if c.cfg != nil {
-		opts = append(opts, cctidy.WithBashConfig(&c.cfg.Sweep.Bash))
+		opts = append(opts, cctidy.WithBashConfig(&c.cfg.Permission.Bash))
 	}
 	if c.Unsafe {
 		opts = append(opts, cctidy.WithUnsafe())
@@ -258,7 +258,7 @@ func (c *CLI) defaultTargets() []targetFile {
 	var globalOpts []cctidy.SweepOption
 	projectOpts := []cctidy.SweepOption{cctidy.WithBaseDir(projectRoot)}
 	if c.cfg != nil {
-		bashOpt := cctidy.WithBashConfig(&c.cfg.Sweep.Bash)
+		bashOpt := cctidy.WithBashConfig(&c.cfg.Permission.Bash)
 		globalOpts = append(globalOpts, bashOpt)
 		projectOpts = append(projectOpts, bashOpt)
 	}

@@ -16,10 +16,10 @@ func TestLoadConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Sweep.Bash.Enabled {
+		if cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be false for missing config")
 		}
-		if len(cfg.Sweep.Bash.ExcludeEntries) != 0 {
+		if len(cfg.Permission.Bash.ExcludeEntries) != 0 {
 			t.Error("ExcludeEntries should be empty")
 		}
 	})
@@ -30,7 +30,7 @@ func TestLoadConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Sweep.Bash.Enabled {
+		if cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be false for default missing config")
 		}
 	})
@@ -40,7 +40,7 @@ func TestLoadConfig(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.toml")
 		content := `
-[sweep.bash]
+[permission.bash]
 enabled = true
 exclude_entries = [
   "mkdir -p /opt/myapp/logs",
@@ -61,17 +61,17 @@ exclude_paths = [
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !cfg.Sweep.Bash.Enabled {
+		if !cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be true")
 		}
-		if len(cfg.Sweep.Bash.ExcludeEntries) != 2 {
-			t.Errorf("ExcludeEntries len = %d, want 2", len(cfg.Sweep.Bash.ExcludeEntries))
+		if len(cfg.Permission.Bash.ExcludeEntries) != 2 {
+			t.Errorf("ExcludeEntries len = %d, want 2", len(cfg.Permission.Bash.ExcludeEntries))
 		}
-		if len(cfg.Sweep.Bash.ExcludeCommands) != 2 {
-			t.Errorf("ExcludeCommands len = %d, want 2", len(cfg.Sweep.Bash.ExcludeCommands))
+		if len(cfg.Permission.Bash.ExcludeCommands) != 2 {
+			t.Errorf("ExcludeCommands len = %d, want 2", len(cfg.Permission.Bash.ExcludeCommands))
 		}
-		if len(cfg.Sweep.Bash.ExcludePaths) != 2 {
-			t.Errorf("ExcludePaths len = %d, want 2", len(cfg.Sweep.Bash.ExcludePaths))
+		if len(cfg.Permission.Bash.ExcludePaths) != 2 {
+			t.Errorf("ExcludePaths len = %d, want 2", len(cfg.Permission.Bash.ExcludePaths))
 		}
 	})
 
@@ -79,13 +79,13 @@ exclude_paths = [
 		t.Parallel()
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.toml")
-		os.WriteFile(path, []byte("[sweep.bash]\nenabled = false\n"), 0o644)
+		os.WriteFile(path, []byte("[permission.bash]\nenabled = false\n"), 0o644)
 
 		cfg, err := LoadConfig(path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Sweep.Bash.Enabled {
+		if cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be false")
 		}
 	})
@@ -94,20 +94,20 @@ exclude_paths = [
 		t.Parallel()
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.toml")
-		os.WriteFile(path, []byte("[sweep.bash]\nexclude_commands = [\"mkdir\"]\n"), 0o644)
+		os.WriteFile(path, []byte("[permission.bash]\nexclude_commands = [\"mkdir\"]\n"), 0o644)
 
 		cfg, err := LoadConfig(path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Sweep.Bash.Enabled {
+		if cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be false when not set")
 		}
-		if len(cfg.Sweep.Bash.ExcludeCommands) != 1 {
-			t.Errorf("ExcludeCommands len = %d, want 1", len(cfg.Sweep.Bash.ExcludeCommands))
+		if len(cfg.Permission.Bash.ExcludeCommands) != 1 {
+			t.Errorf("ExcludeCommands len = %d, want 1", len(cfg.Permission.Bash.ExcludeCommands))
 		}
-		if cfg.Sweep.Bash.ExcludeCommands[0] != "mkdir" {
-			t.Errorf("ExcludeCommands[0] = %q, want %q", cfg.Sweep.Bash.ExcludeCommands[0], "mkdir")
+		if cfg.Permission.Bash.ExcludeCommands[0] != "mkdir" {
+			t.Errorf("ExcludeCommands[0] = %q, want %q", cfg.Permission.Bash.ExcludeCommands[0], "mkdir")
 		}
 	})
 
@@ -133,7 +133,7 @@ exclude_paths = [
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Sweep.Bash.Enabled {
+		if cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be false for empty config")
 		}
 	})
@@ -195,7 +195,7 @@ func TestMergeRawConfigs(t *testing.T) {
 	t.Run("both zero", func(t *testing.T) {
 		t.Parallel()
 		got := mergeRawConfigs(rawConfig{}, rawConfig{})
-		if got.Sweep.Bash.Enabled != nil {
+		if got.Permission.Bash.Enabled != nil {
 			t.Error("expected Enabled nil for both zero")
 		}
 	})
@@ -203,11 +203,11 @@ func TestMergeRawConfigs(t *testing.T) {
 	t.Run("overlay Enabled overrides base", func(t *testing.T) {
 		t.Parallel()
 		base := rawConfig{}
-		base.Sweep.Bash.Enabled = boolPtr(true)
+		base.Permission.Bash.Enabled = boolPtr(true)
 		overlay := rawConfig{}
-		overlay.Sweep.Bash.Enabled = boolPtr(false)
+		overlay.Permission.Bash.Enabled = boolPtr(false)
 		got := mergeRawConfigs(base, overlay)
-		if got.Sweep.Bash.Enabled == nil || *got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled == nil || *got.Permission.Bash.Enabled {
 			t.Error("overlay Enabled=false should win")
 		}
 	})
@@ -215,9 +215,9 @@ func TestMergeRawConfigs(t *testing.T) {
 	t.Run("overlay Enabled nil preserves base", func(t *testing.T) {
 		t.Parallel()
 		base := rawConfig{}
-		base.Sweep.Bash.Enabled = boolPtr(true)
+		base.Permission.Bash.Enabled = boolPtr(true)
 		got := mergeRawConfigs(base, rawConfig{})
-		if got.Sweep.Bash.Enabled == nil || !*got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled == nil || !*got.Permission.Bash.Enabled {
 			t.Error("base Enabled=true should be preserved")
 		}
 	})
@@ -225,13 +225,13 @@ func TestMergeRawConfigs(t *testing.T) {
 	t.Run("arrays union", func(t *testing.T) {
 		t.Parallel()
 		base := rawConfig{}
-		base.Sweep.Bash.ExcludeCommands = []string{"mkdir", "touch"}
+		base.Permission.Bash.ExcludeCommands = []string{"mkdir", "touch"}
 		overlay := rawConfig{}
-		overlay.Sweep.Bash.ExcludeCommands = []string{"touch", "rm"}
+		overlay.Permission.Bash.ExcludeCommands = []string{"touch", "rm"}
 		got := mergeRawConfigs(base, overlay)
 		want := []string{"mkdir", "touch", "rm"}
-		if !slices.Equal(got.Sweep.Bash.ExcludeCommands, want) {
-			t.Errorf("got %v, want %v", got.Sweep.Bash.ExcludeCommands, want)
+		if !slices.Equal(got.Permission.Bash.ExcludeCommands, want) {
+			t.Errorf("got %v, want %v", got.Permission.Bash.ExcludeCommands, want)
 		}
 	})
 }
@@ -242,23 +242,23 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("zero project is no-op", func(t *testing.T) {
 		t.Parallel()
 		base := &Config{}
-		base.Sweep.Bash.Enabled = true
-		base.Sweep.Bash.ExcludeCommands = []string{"mkdir"}
+		base.Permission.Bash.Enabled = true
+		base.Permission.Bash.ExcludeCommands = []string{"mkdir"}
 		got := MergeConfig(base, rawConfig{}, "/project")
-		if !got.Sweep.Bash.Enabled {
+		if !got.Permission.Bash.Enabled {
 			t.Error("base Enabled=true should be preserved")
 		}
-		if !slices.Equal(got.Sweep.Bash.ExcludeCommands, []string{"mkdir"}) {
-			t.Errorf("commands: got %v, want [mkdir]", got.Sweep.Bash.ExcludeCommands)
+		if !slices.Equal(got.Permission.Bash.ExcludeCommands, []string{"mkdir"}) {
+			t.Errorf("commands: got %v, want [mkdir]", got.Permission.Bash.ExcludeCommands)
 		}
 	})
 
 	t.Run("nil base treated as zero", func(t *testing.T) {
 		t.Parallel()
 		project := rawConfig{}
-		project.Sweep.Bash.Enabled = boolPtr(true)
+		project.Permission.Bash.Enabled = boolPtr(true)
 		got := MergeConfig(nil, project, "/project")
-		if !got.Sweep.Bash.Enabled {
+		if !got.Permission.Bash.Enabled {
 			t.Error("expected Enabled=true from project")
 		}
 	})
@@ -266,11 +266,11 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("project Enabled overrides base", func(t *testing.T) {
 		t.Parallel()
 		base := &Config{}
-		base.Sweep.Bash.Enabled = true
+		base.Permission.Bash.Enabled = true
 		project := rawConfig{}
-		project.Sweep.Bash.Enabled = boolPtr(false)
+		project.Permission.Bash.Enabled = boolPtr(false)
 		got := MergeConfig(base, project, "/project")
-		if got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled {
 			t.Error("project Enabled=false should override base")
 		}
 	})
@@ -278,9 +278,9 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("project Enabled nil preserves base", func(t *testing.T) {
 		t.Parallel()
 		base := &Config{}
-		base.Sweep.Bash.Enabled = true
+		base.Permission.Bash.Enabled = true
 		got := MergeConfig(base, rawConfig{}, "/project")
-		if !got.Sweep.Bash.Enabled {
+		if !got.Permission.Bash.Enabled {
 			t.Error("base Enabled=true should be preserved")
 		}
 	})
@@ -288,33 +288,33 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("arrays union with dedup", func(t *testing.T) {
 		t.Parallel()
 		base := &Config{}
-		base.Sweep.Bash.ExcludeCommands = []string{"mkdir", "touch"}
-		base.Sweep.Bash.ExcludeEntries = []string{"entry1"}
+		base.Permission.Bash.ExcludeCommands = []string{"mkdir", "touch"}
+		base.Permission.Bash.ExcludeEntries = []string{"entry1"}
 		project := rawConfig{}
-		project.Sweep.Bash.ExcludeCommands = []string{"touch", "rm"}
-		project.Sweep.Bash.ExcludeEntries = []string{"entry1", "entry2"}
+		project.Permission.Bash.ExcludeCommands = []string{"touch", "rm"}
+		project.Permission.Bash.ExcludeEntries = []string{"entry1", "entry2"}
 		got := MergeConfig(base, project, "/project")
 		wantCmds := []string{"mkdir", "touch", "rm"}
-		if !slices.Equal(got.Sweep.Bash.ExcludeCommands, wantCmds) {
-			t.Errorf("commands: got %v, want %v", got.Sweep.Bash.ExcludeCommands, wantCmds)
+		if !slices.Equal(got.Permission.Bash.ExcludeCommands, wantCmds) {
+			t.Errorf("commands: got %v, want %v", got.Permission.Bash.ExcludeCommands, wantCmds)
 		}
 		wantEntries := []string{"entry1", "entry2"}
-		if !slices.Equal(got.Sweep.Bash.ExcludeEntries, wantEntries) {
-			t.Errorf("entries: got %v, want %v", got.Sweep.Bash.ExcludeEntries, wantEntries)
+		if !slices.Equal(got.Permission.Bash.ExcludeEntries, wantEntries) {
+			t.Errorf("entries: got %v, want %v", got.Permission.Bash.ExcludeEntries, wantEntries)
 		}
 	})
 
 	t.Run("relative paths resolved against projectRoot", func(t *testing.T) {
 		t.Parallel()
 		base := &Config{}
-		base.Sweep.Bash.ExcludePaths = []string{"/global/path/"}
+		base.Permission.Bash.ExcludePaths = []string{"/global/path/"}
 		project := rawConfig{}
-		project.Sweep.Bash.ExcludePaths = []string{"vendor/", "/abs/path/"}
+		project.Permission.Bash.ExcludePaths = []string{"vendor/", "/abs/path/"}
 		got := MergeConfig(base, project, "/myproject")
 		// filepath.Join strips trailing slash: "vendor/" -> "/myproject/vendor"
 		want := []string{"/global/path/", filepath.Join("/myproject", "vendor/"), "/abs/path/"}
-		if !slices.Equal(got.Sweep.Bash.ExcludePaths, want) {
-			t.Errorf("paths: got %v, want %v", got.Sweep.Bash.ExcludePaths, want)
+		if !slices.Equal(got.Permission.Bash.ExcludePaths, want) {
+			t.Errorf("paths: got %v, want %v", got.Permission.Bash.ExcludePaths, want)
 		}
 	})
 }
@@ -329,7 +329,7 @@ func TestLoadProjectConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Sweep.Bash.Enabled != nil {
+		if got.Permission.Bash.Enabled != nil {
 			t.Error("expected Enabled nil for missing project config")
 		}
 	})
@@ -340,17 +340,17 @@ func TestLoadProjectConfig(t *testing.T) {
 		claudeDir := filepath.Join(dir, ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"),
-			[]byte("[sweep.bash]\nenabled = true\nexclude_commands = [\"mkdir\"]\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = true\nexclude_commands = [\"mkdir\"]\n"), 0o644)
 
 		got, err := LoadProjectConfig(dir)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Sweep.Bash.Enabled == nil || !*got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled == nil || !*got.Permission.Bash.Enabled {
 			t.Error("expected Enabled=true from shared")
 		}
-		if len(got.Sweep.Bash.ExcludeCommands) != 1 || got.Sweep.Bash.ExcludeCommands[0] != "mkdir" {
-			t.Errorf("unexpected ExcludeCommands: %v", got.Sweep.Bash.ExcludeCommands)
+		if len(got.Permission.Bash.ExcludeCommands) != 1 || got.Permission.Bash.ExcludeCommands[0] != "mkdir" {
+			t.Errorf("unexpected ExcludeCommands: %v", got.Permission.Bash.ExcludeCommands)
 		}
 	})
 
@@ -360,13 +360,13 @@ func TestLoadProjectConfig(t *testing.T) {
 		claudeDir := filepath.Join(dir, ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.local.toml"),
-			[]byte("[sweep.bash]\nenabled = false\nexclude_commands = [\"touch\"]\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = false\nexclude_commands = [\"touch\"]\n"), 0o644)
 
 		got, err := LoadProjectConfig(dir)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Sweep.Bash.Enabled == nil || *got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled == nil || *got.Permission.Bash.Enabled {
 			t.Error("expected Enabled=false from local")
 		}
 	})
@@ -377,20 +377,20 @@ func TestLoadProjectConfig(t *testing.T) {
 		claudeDir := filepath.Join(dir, ".claude")
 		os.MkdirAll(claudeDir, 0o755)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.toml"),
-			[]byte("[sweep.bash]\nenabled = true\nexclude_commands = [\"mkdir\"]\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = true\nexclude_commands = [\"mkdir\"]\n"), 0o644)
 		os.WriteFile(filepath.Join(claudeDir, "cctidy.local.toml"),
-			[]byte("[sweep.bash]\nenabled = false\nexclude_commands = [\"touch\"]\n"), 0o644)
+			[]byte("[permission.bash]\nenabled = false\nexclude_commands = [\"touch\"]\n"), 0o644)
 
 		got, err := LoadProjectConfig(dir)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Sweep.Bash.Enabled == nil || *got.Sweep.Bash.Enabled {
+		if got.Permission.Bash.Enabled == nil || *got.Permission.Bash.Enabled {
 			t.Error("local Enabled=false should override shared")
 		}
 		wantCmds := []string{"mkdir", "touch"}
-		if !slices.Equal(got.Sweep.Bash.ExcludeCommands, wantCmds) {
-			t.Errorf("commands: got %v, want %v", got.Sweep.Bash.ExcludeCommands, wantCmds)
+		if !slices.Equal(got.Permission.Bash.ExcludeCommands, wantCmds) {
+			t.Errorf("commands: got %v, want %v", got.Permission.Bash.ExcludeCommands, wantCmds)
 		}
 	})
 

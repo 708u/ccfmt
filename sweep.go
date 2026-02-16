@@ -207,8 +207,8 @@ type BashExcluder struct {
 	paths    []string // prefix match
 }
 
-// NewBashExcluder builds a BashExcluder from a BashSweepConfig.
-func NewBashExcluder(cfg BashSweepConfig) *BashExcluder {
+// NewBashExcluder builds a BashExcluder from a BashPermissionConfig.
+func NewBashExcluder(cfg BashPermissionConfig) *BashExcluder {
 	entries := set.New(cfg.ExcludeEntries...)
 	commands := set.New(cfg.ExcludeCommands...)
 	paths := make([]string, len(cfg.ExcludePaths))
@@ -377,9 +377,9 @@ type PermissionSweeper struct {
 type SweepOption func(*sweepConfig)
 
 type sweepConfig struct {
-	baseDir      string
-	unsafe       bool
-	bashSweepCfg *BashSweepConfig
+	baseDir string
+	unsafe  bool
+	bashCfg *BashPermissionConfig
 }
 
 // WithBaseDir sets the base directory for resolving relative path specifiers.
@@ -389,12 +389,12 @@ func WithBaseDir(dir string) SweepOption {
 	}
 }
 
-// WithBashConfig sets the BashSweepConfig for Bash sweeping.
+// WithBashConfig sets the BashPermissionConfig for Bash sweeping.
 // Exclude patterns filter entries from sweeping.
 // When cfg.Enabled is true, Bash sweep runs without --unsafe.
-func WithBashConfig(cfg *BashSweepConfig) SweepOption {
+func WithBashConfig(cfg *BashPermissionConfig) SweepOption {
 	return func(c *sweepConfig) {
-		c.bashSweepCfg = cfg
+		c.bashCfg = cfg
 	}
 }
 
@@ -436,9 +436,9 @@ func NewPermissionSweeper(checker PathChecker, homeDir string, servers set.Value
 	task := NewTaskToolSweeper(LoadAgentNames(agentsDir))
 	skill := NewSkillToolSweeper(LoadSkillNames(claudeDir))
 
-	var bashCfg BashSweepConfig
-	if cfg.bashSweepCfg != nil {
-		bashCfg = *cfg.bashSweepCfg
+	var bashCfg BashPermissionConfig
+	if cfg.bashCfg != nil {
+		bashCfg = *cfg.bashCfg
 	}
 	bash := NewBashToolSweeper(
 		checker, homeDir, cfg.baseDir,

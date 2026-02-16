@@ -80,7 +80,7 @@ Bash sweeping is the only unsafe sweeper. It uses
 path extraction heuristics that may produce false
 positives.
 
-Config `[sweep.bash] enabled = true` promotes Bash
+Config `[permission.bash] enabled = true` promotes Bash
 to safe tier (always active without `--unsafe`).
 See [CLI Reference](cli.md#configuration-file).
 
@@ -115,7 +115,7 @@ The following entries are always kept:
 ## Bash
 
 Enabled with `--unsafe` flag or
-`[sweep.bash] enabled = true` in config.
+`[permission.bash] enabled = true` in config.
 
 Bash entries have the form `Bash(command string)`.
 The sweeper extracts all paths from the command and

@@ -43,7 +43,7 @@ sweeping.
 
 > [!NOTE]
 > Bash tool sweeping is opt-in via `--unsafe` flag
-> or `[sweep.bash] enabled = true` in config. Bash
+> or `[permission.bash] enabled = true` in config. Bash
 > entries use path extraction heuristics that may
 > produce false positives, so sweeping is disabled
 > by default.
@@ -160,7 +160,7 @@ working directory.
 
 ```toml
 # ~/.config/cctidy/config.toml or .claude/cctidy.toml
-[sweep.bash]
+[permission.bash]
 enabled = true
 exclude_entries = ["mkdir -p /opt/logs"]
 exclude_commands = ["mkdir", "touch"]
