@@ -13,6 +13,7 @@ sweepers require explicit opt-in.
 | Read  | safe   | Path existence check only     |
 | Edit  | safe   | Path existence check only     |
 | Task  | safe   | Agent existence check only    |
+| Skill | safe   | Skill/command existence check |
 | MCP   | safe   | Server existence check only   |
 | Bash  | unsafe | Command string heuristics     |
 
