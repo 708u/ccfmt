@@ -65,9 +65,12 @@ func extractToolEntry(entry string) ToolEntry {
 
 // ToolSweepResult holds the result of a single tool sweeper evaluation.
 // When Warn is non-empty the entry is kept and the warning is recorded.
+// AllowOnly indicates this sweep applies only to the allow category;
+// entries in other categories (e.g. ask) are kept.
 type ToolSweepResult struct {
-	Sweep bool
-	Warn  string
+	Sweep     bool
+	AllowOnly bool
+	Warn      string
 }
 
 // ToolSweeper decides whether a permission entry should be swept.
@@ -213,7 +216,7 @@ type BashExcluder struct {
 
 // NewBashExcluder builds a BashExcluder from a BashPermissionConfig.
 func NewBashExcluder(cfg BashPermissionConfig) *BashExcluder {
-	removeCommands := set.New(cfg.RemoveCommands...)
+	removeCommands := set.New(cfg.Allow.RemoveCommands...)
 	entries := set.New(cfg.ExcludeEntries...)
 	commands := set.New(cfg.ExcludeCommands...)
 	paths := make([]string, len(cfg.ExcludePaths))
@@ -296,7 +299,7 @@ func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) 
 	specifier := entry.Specifier
 
 	if b.excluder.IsRemoveTarget(specifier) {
-		return ToolSweepResult{Sweep: true}
+		return ToolSweepResult{Sweep: true, AllowOnly: true}
 	}
 
 	absPaths := extractAbsolutePaths(specifier)
@@ -546,7 +549,12 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 		kept := make([]any, 0, len(arr))
 		for _, v := range arr {
 			entry, ok := v.(string)
-			if ok && p.shouldSweep(ctx, entry, result) {
+			if !ok {
+				kept = append(kept, v)
+				continue
+			}
+			r := p.shouldSweep(ctx, entry, result)
+			if r.Sweep && (!r.AllowOnly || cat.key == "allow") {
 				categories[i].count++
 				continue
 			}
@@ -560,21 +568,21 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 	return result
 }
 
-func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) bool {
+func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) ToolSweepResult {
 	te := extractToolEntry(entry)
 	if te == nil {
-		return false
+		return ToolSweepResult{}
 	}
 
 	tool, ok := p.tools[te.Name()]
 	if !ok {
-		return false
+		return ToolSweepResult{}
 	}
 
 	r := tool.ShouldSweep(ctx, te)
 	if r.Warn != "" {
 		result.Warns = append(result.Warns, entry)
-		return false
+		return ToolSweepResult{}
 	}
-	return r.Sweep
+	return r
 }

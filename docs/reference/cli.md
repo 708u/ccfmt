@@ -62,6 +62,9 @@ Global config (`~/.config/cctidy/config.toml`):
 ```toml
 [permission.bash]
 exclude_commands = ["mkdir", "touch"]
+
+[permission.bash.allow]
+remove_commands = ["npm", "pip"]
 ```
 
 Project shared config (`.claude/cctidy.toml`):
@@ -77,26 +80,36 @@ Project local config (`.claude/cctidy.local.toml`):
 ```toml
 [permission.bash]
 exclude_commands = ["ln"]
+
+[permission.bash.allow]
+remove_commands = ["yarn"]
 ```
 
 Merged result: `enabled = true`,
 `exclude_commands = ["mkdir", "touch", "ln"]`,
-`exclude_paths = ["<projectRoot>/vendor/"]`.
+`exclude_paths = ["<projectRoot>/vendor/"]`,
+`allow.remove_commands = ["npm", "pip", "yarn"]`.
 
 ### Config Fields
 
 #### `[permission.bash]`
 
-| Key                | Type     | Default | Description            |
-| ------------------ | -------- | ------- | ---------------------- |
-| `enabled`          | bool     | (unset) | Enable Bash sweep      |
-| `remove_commands`  | string[] | []      | Commands to always     |
-|                    |          |         | sweep (first token)    |
-| `exclude_entries`  | string[] | []      | Specifiers to keep     |
-|                    |          |         | (exact match)          |
-| `exclude_commands` | string[] | []      | Commands to keep       |
-|                    |          |         | (first token match)    |
-| `exclude_paths`    | string[] | []      | Path prefixes to keep  |
+| Key                | Type     | Default | Description           |
+| ------------------ | -------- | ------- | --------------------- |
+| `enabled`          | bool     | (unset) | Enable Bash sweep     |
+| `exclude_entries`  | string[] | []      | Specifiers to keep    |
+|                    |          |         | (exact match)         |
+| `exclude_commands` | string[] | []      | Commands to keep      |
+|                    |          |         | (first token match)   |
+| `exclude_paths`    | string[] | []      | Path prefixes to keep |
+
+#### `[permission.bash.allow]`
+
+| Key                | Type     | Default | Description           |
+| ------------------ | -------- | ------- | --------------------- |
+| `remove_commands`  | string[] | []      | Commands to always    |
+|                    |          |         | sweep from allow      |
+|                    |          |         | (first token match)   |
 
 ### Priority: CLI vs Config (Bash)
 
