@@ -54,6 +54,9 @@ exclude_paths = [
   "/opt/myapp/",
   "/var/log/myapp/",
 ]
+
+[permission.bash.allow]
+remove_commands = ["npm", "pip"]
 `
 		os.WriteFile(path, []byte(content), 0o644)
 
@@ -63,6 +66,9 @@ exclude_paths = [
 		}
 		if !cfg.Permission.Bash.Enabled {
 			t.Error("Enabled should be true")
+		}
+		if len(cfg.Permission.Bash.Allow.RemoveCommands) != 2 {
+			t.Errorf("Allow.RemoveCommands len = %d, want 2", len(cfg.Permission.Bash.Allow.RemoveCommands))
 		}
 		if len(cfg.Permission.Bash.ExcludeEntries) != 2 {
 			t.Errorf("ExcludeEntries len = %d, want 2", len(cfg.Permission.Bash.ExcludeEntries))
@@ -234,6 +240,19 @@ func TestMergeRawConfigs(t *testing.T) {
 			t.Errorf("got %v, want %v", got.Permission.Bash.ExcludeCommands, want)
 		}
 	})
+
+	t.Run("RemoveCommands union", func(t *testing.T) {
+		t.Parallel()
+		base := rawConfig{}
+		base.Permission.Bash.Allow.RemoveCommands = []string{"npm", "pip"}
+		overlay := rawConfig{}
+		overlay.Permission.Bash.Allow.RemoveCommands = []string{"pip", "yarn"}
+		got := mergeRawConfigs(base, overlay)
+		want := []string{"npm", "pip", "yarn"}
+		if !slices.Equal(got.Permission.Bash.Allow.RemoveCommands, want) {
+			t.Errorf("got %v, want %v", got.Permission.Bash.Allow.RemoveCommands, want)
+		}
+	})
 }
 
 func TestMergeConfig(t *testing.T) {
@@ -301,6 +320,19 @@ func TestMergeConfig(t *testing.T) {
 		wantEntries := []string{"entry1", "entry2"}
 		if !slices.Equal(got.Permission.Bash.ExcludeEntries, wantEntries) {
 			t.Errorf("entries: got %v, want %v", got.Permission.Bash.ExcludeEntries, wantEntries)
+		}
+	})
+
+	t.Run("RemoveCommands union with dedup", func(t *testing.T) {
+		t.Parallel()
+		base := &Config{}
+		base.Permission.Bash.Allow.RemoveCommands = []string{"npm", "pip"}
+		project := rawConfig{}
+		project.Permission.Bash.Allow.RemoveCommands = []string{"pip", "yarn"}
+		got := MergeConfig(base, project, "/project")
+		want := []string{"npm", "pip", "yarn"}
+		if !slices.Equal(got.Permission.Bash.Allow.RemoveCommands, want) {
+			t.Errorf("RemoveCommands: got %v, want %v", got.Permission.Bash.Allow.RemoveCommands, want)
 		}
 	})
 

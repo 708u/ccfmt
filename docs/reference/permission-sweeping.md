@@ -146,26 +146,70 @@ excluded from evaluation (treated as unresolvable).
 
 ### Bash Sweep Logic
 
-An entry is swept only when **all** of these are true:
+Decision flow:
 
-1. At least one path was extracted from the command
-2. Every extracted path is non-existent
+```txt
+1. !active           -> KEEP (master switch)
+2. remove_commands    -> SWEEP (allow only)
+3. exclude check      -> KEEP
+4. path extraction    -> no paths -> KEEP
+5. all paths dead     -> SWEEP
+```
+
+`remove_commands` takes priority over `exclude_commands`.
+If the same command appears in both, remove wins.
+
+An entry is swept when **any** of these are true:
+
+- The command matches `remove_commands` **and** the
+  entry is in the `allow` category (ask entries are
+  kept)
+- At least one path was extracted **and** every
+  extracted path is non-existent
 
 If no paths can be extracted (e.g. `Bash(npm run *)`),
-the entry is kept.
+the entry is kept (unless `remove_commands` matches).
 
 If at least one path exists
 (e.g. `Bash(cp /alive/src /dead/dst)`),
-the entry is kept.
+the entry is kept (unless `remove_commands` matches).
 
 ### Examples
 
-| Entry                                    | Result | Reason               |
-| ---------------------------------------- | ------ | -------------------- |
-| `Bash(git -C /dead/repo status)`         | swept  | all paths dead       |
-| `Bash(cp /alive/src /dead/dst)`          | kept   | `/alive/src` exists  |
-| `Bash(npm run *)`                        | kept   | no extractable paths |
-| `Bash(cat ./dead/file)` (no projectDir)  | kept   | path unresolvable    |
+| Entry                                      | Result | Reason               |
+| ------------------------------------------ | ------ | -------------------- |
+| `Bash(git -C /dead/repo status)`           | swept  | all paths dead       |
+| `Bash(cp /alive/src /dead/dst)`            | kept   | `/alive/src` exists  |
+| `Bash(npm run *)`                          | kept   | no extractable paths |
+| `Bash(cat ./dead/file)` (no projectDir)    | kept   | path unresolvable    |
+| `Bash(npm install foo)` (remove, allow)    | swept  | remove_commands      |
+| `Bash(npm install foo)` (remove, ask)      | kept   | allow only           |
+| `Bash(git -C /alive status)` (remove)      | swept  | remove_commands      |
+
+### Remove Commands
+
+`remove_commands` lists command names (first token)
+that should always be swept from `allow` entries,
+regardless of path existence. `ask` entries are never
+affected because they represent explicit user intent
+to be prompted, and removing them has no practical
+effect (the default behavior is already ask).
+
+This is useful for package manager commands like
+`npm`, `pip`, or `yarn` that typically do not
+contain path arguments.
+
+`remove_commands` requires `active=true` (either via
+`enabled = true` or `--unsafe`). When Bash sweeping
+is off, `remove_commands` has no effect.
+
+`remove_commands` is configured under
+`[permission.bash.allow]` to reflect its allow-only
+scope. See [CLI Reference](cli.md#configuration-file).
+
+If a command appears in both `remove_commands` and
+`exclude_commands`, `remove_commands` takes priority
+and the entry is swept.
 
 ### Exclude Patterns
 

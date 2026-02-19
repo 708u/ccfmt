@@ -295,10 +295,11 @@ func mustNewBashToolSweeper(t *testing.T, checker PathChecker, homeDir, projectD
 func TestBashToolSweeperShouldSweep(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name      string
-		sweeper   *BashToolSweeper
-		specifier string
-		wantSweep bool
+		name          string
+		sweeper       *BashToolSweeper
+		specifier     string
+		wantSweep     bool
+		wantAllowOnly bool
 	}{
 		{
 			name:      "all paths dead",
@@ -384,6 +385,22 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 			specifier: "cat ./local ../parent ~/home",
 			wantSweep: false,
 		},
+		{
+			name: "remove command sweeps entry without paths",
+			sweeper: mustNewBashToolSweeper(t, testutil.AllPathsExist{}, "", "", UserLevel,
+				NewBashExcluder(BashPermissionConfig{Allow: BashAllowConfig{RemoveCommands: []string{"npm"}}}), true),
+			specifier:     "npm install foo",
+			wantSweep:     true,
+			wantAllowOnly: true,
+		},
+		{
+			name: "remove command sweeps entry even with alive paths",
+			sweeper: mustNewBashToolSweeper(t, testutil.AllPathsExist{}, "", "", UserLevel,
+				NewBashExcluder(BashPermissionConfig{Allow: BashAllowConfig{RemoveCommands: []string{"git"}}}), true),
+			specifier:     "git -C /alive/repo status",
+			wantSweep:     true,
+			wantAllowOnly: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -392,7 +409,10 @@ func TestBashToolSweeperShouldSweep(t *testing.T) {
 			entry := StandardEntry{Tool: ToolBash, Specifier: tt.specifier}
 			result := tt.sweeper.ShouldSweep(t.Context(), entry)
 			if result.Sweep != tt.wantSweep {
-				t.Errorf("ShouldSweep(%q) = %v, want %v", tt.specifier, result.Sweep, tt.wantSweep)
+				t.Errorf("ShouldSweep(%q).Sweep = %v, want %v", tt.specifier, result.Sweep, tt.wantSweep)
+			}
+			if result.AllowOnly != tt.wantAllowOnly {
+				t.Errorf("ShouldSweep(%q).AllowOnly = %v, want %v", tt.specifier, result.AllowOnly, tt.wantAllowOnly)
 			}
 		})
 	}
@@ -562,6 +582,16 @@ func TestBashToolSweeperWithExcluder(t *testing.T) {
 			name:      "empty excluder does not affect sweeping",
 			sweeper:   mustNewBashToolSweeper(t, testutil.NoPathsExist{}, "", "", UserLevel, noExcludes, true),
 			specifier: "git -C /dead/repo status",
+			wantSweep: true,
+		},
+		{
+			name: "remove wins over exclude for same command",
+			sweeper: mustNewBashToolSweeper(t, testutil.AllPathsExist{}, "", "", UserLevel,
+				NewBashExcluder(BashPermissionConfig{
+					Allow:           BashAllowConfig{RemoveCommands: []string{"npm"}},
+					ExcludeCommands: []string{"npm"},
+				}), true),
+			specifier: "npm install foo",
 			wantSweep: true,
 		},
 	}
@@ -1334,6 +1364,43 @@ func TestSweepPermissions(t *testing.T) {
 		}
 		if result.SweptAllow != 1 {
 			t.Errorf("SweptAllow = %d, want 1", result.SweptAllow)
+		}
+	})
+
+	t.Run("remove_commands sweeps allow but keeps ask", func(t *testing.T) {
+		t.Parallel()
+		obj := map[string]any{
+			"permissions": map[string]any{
+				"allow": []any{
+					"Bash(npm install foo)",
+					"Bash(git -C /dead/repo status)",
+				},
+				"ask": []any{
+					"Bash(npm run build)",
+					"Bash(git -C /dead/repo status)",
+				},
+			},
+		}
+		cfg := &BashPermissionConfig{
+			Enabled: true,
+			Allow:   BashAllowConfig{RemoveCommands: []string{"npm"}},
+		}
+		result := mustNewPermissionSweeper(t, testutil.NoPathsExist{}, "", nil, WithBashConfig(cfg)).Sweep(t.Context(), obj)
+		allow := obj["permissions"].(map[string]any)["allow"].([]any)
+		ask := obj["permissions"].(map[string]any)["ask"].([]any)
+		// allow: npm swept (remove_commands), git swept (dead paths) -> 0
+		if len(allow) != 0 {
+			t.Errorf("allow len = %d, want 0, got %v", len(allow), allow)
+		}
+		// ask: npm kept (AllowOnly), git swept (dead paths) -> 1
+		if len(ask) != 1 {
+			t.Errorf("ask len = %d, want 1, got %v", len(ask), ask)
+		}
+		if result.SweptAllow != 2 {
+			t.Errorf("SweptAllow = %d, want 2", result.SweptAllow)
+		}
+		if result.SweptAsk != 1 {
+			t.Errorf("SweptAsk = %d, want 1", result.SweptAsk)
 		}
 	})
 

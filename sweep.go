@@ -65,9 +65,12 @@ func extractToolEntry(entry string) ToolEntry {
 
 // ToolSweepResult holds the result of a single tool sweeper evaluation.
 // When Warn is non-empty the entry is kept and the warning is recorded.
+// AllowOnly indicates this sweep applies only to the allow category;
+// entries in other categories (e.g. ask) are kept.
 type ToolSweepResult struct {
-	Sweep bool
-	Warn  string
+	Sweep     bool
+	AllowOnly bool
+	Warn      string
 }
 
 // ToolSweeper decides whether a permission entry should be swept.
@@ -202,15 +205,18 @@ func extractRelativePaths(s string) []string {
 }
 
 // BashExcluder decides whether a Bash permission specifier should be
-// excluded from sweeping (i.e. always kept).
+// excluded from sweeping (i.e. always kept), or force-swept via
+// remove_commands.
 type BashExcluder struct {
-	entries  set.Value[string]
-	commands set.Value[string]
-	paths    []string // prefix match
+	removeCommands set.Value[string]
+	entries        set.Value[string]
+	commands       set.Value[string]
+	paths          []string // prefix match
 }
 
 // NewBashExcluder builds a BashExcluder from a BashPermissionConfig.
 func NewBashExcluder(cfg BashPermissionConfig) *BashExcluder {
+	removeCommands := set.New(cfg.Allow.RemoveCommands...)
 	entries := set.New(cfg.ExcludeEntries...)
 	commands := set.New(cfg.ExcludeCommands...)
 	paths := make([]string, len(cfg.ExcludePaths))
@@ -218,9 +224,10 @@ func NewBashExcluder(cfg BashPermissionConfig) *BashExcluder {
 		paths[i] = filepath.Clean(p)
 	}
 	return &BashExcluder{
-		entries:  entries,
-		commands: commands,
-		paths:    paths,
+		removeCommands: removeCommands,
+		entries:        entries,
+		commands:       commands,
+		paths:          paths,
 	}
 }
 
@@ -282,6 +289,12 @@ func (b *BashToolSweeper) ShouldSweep(ctx context.Context, entry StandardEntry) 
 		return ToolSweepResult{}
 	}
 	specifier := entry.Specifier
+
+	cmd, _, _ := strings.Cut(specifier, " ")
+	if b.excluder.removeCommands.Has(cmd) {
+		return ToolSweepResult{Sweep: true, AllowOnly: true}
+	}
+
 	absPaths := extractAbsolutePaths(specifier)
 
 	if b.excluder.IsExcluded(specifier, absPaths) {
@@ -529,7 +542,12 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 		kept := make([]any, 0, len(arr))
 		for _, v := range arr {
 			entry, ok := v.(string)
-			if ok && p.shouldSweep(ctx, entry, result) {
+			if !ok {
+				kept = append(kept, v)
+				continue
+			}
+			r := p.shouldSweep(ctx, entry, result)
+			if r.Sweep && (!r.AllowOnly || cat.key == "allow") {
 				categories[i].count++
 				continue
 			}
@@ -543,21 +561,21 @@ func (p *PermissionSweeper) Sweep(ctx context.Context, obj map[string]any) *Swee
 	return result
 }
 
-func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) bool {
+func (p *PermissionSweeper) shouldSweep(ctx context.Context, entry string, result *SweepResult) ToolSweepResult {
 	te := extractToolEntry(entry)
 	if te == nil {
-		return false
+		return ToolSweepResult{}
 	}
 
 	tool, ok := p.tools[te.Name()]
 	if !ok {
-		return false
+		return ToolSweepResult{}
 	}
 
 	r := tool.ShouldSweep(ctx, te)
 	if r.Warn != "" {
 		result.Warns = append(result.Warns, entry)
-		return false
+		return ToolSweepResult{}
 	}
-	return r.Sweep
+	return r
 }

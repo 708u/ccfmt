@@ -21,10 +21,21 @@ type PermissionConfig struct {
 	Bash BashPermissionConfig `toml:"bash"`
 }
 
+// BashAllowConfig holds settings scoped to the allow permission category.
+type BashAllowConfig struct {
+	// RemoveCommands lists command names (first token) to always sweep
+	// from allow entries, regardless of path existence.
+	// Takes priority over ExcludeCommands.
+	RemoveCommands []string `toml:"remove_commands"`
+}
+
 // BashPermissionConfig controls Bash permission entry sweeping.
 type BashPermissionConfig struct {
 	// Enabled turns on Bash sweep when true.
 	Enabled bool `toml:"enabled"`
+
+	// Allow holds settings that apply only to allow entries.
+	Allow BashAllowConfig `toml:"allow"`
 
 	// ExcludeEntries lists specifiers to exclude by exact match.
 	ExcludeEntries []string `toml:"exclude_entries"`
@@ -37,12 +48,17 @@ type BashPermissionConfig struct {
 	ExcludePaths []string `toml:"exclude_paths"`
 }
 
+type rawBashAllowConfig struct {
+	RemoveCommands []string `toml:"remove_commands"`
+}
+
 // rawBashPermissionConfig uses *bool to distinguish "unset" from "false".
 type rawBashPermissionConfig struct {
-	Enabled         *bool    `toml:"enabled"`
-	ExcludeEntries  []string `toml:"exclude_entries"`
-	ExcludeCommands []string `toml:"exclude_commands"`
-	ExcludePaths    []string `toml:"exclude_paths"`
+	Enabled         *bool              `toml:"enabled"`
+	Allow           rawBashAllowConfig `toml:"allow"`
+	ExcludeEntries  []string           `toml:"exclude_entries"`
+	ExcludeCommands []string           `toml:"exclude_commands"`
+	ExcludePaths    []string           `toml:"exclude_paths"`
 }
 
 type rawPermissionConfig struct {
@@ -86,6 +102,7 @@ func rawToConfig(raw rawConfig) *Config {
 	if raw.Permission.Bash.Enabled != nil {
 		cfg.Permission.Bash.Enabled = *raw.Permission.Bash.Enabled
 	}
+	cfg.Permission.Bash.Allow.RemoveCommands = raw.Permission.Bash.Allow.RemoveCommands
 	cfg.Permission.Bash.ExcludeEntries = raw.Permission.Bash.ExcludeEntries
 	cfg.Permission.Bash.ExcludeCommands = raw.Permission.Bash.ExcludeCommands
 	cfg.Permission.Bash.ExcludePaths = raw.Permission.Bash.ExcludePaths
@@ -119,6 +136,8 @@ func mergeRawConfigs(base, overlay rawConfig) rawConfig {
 		merged.Permission.Bash.Enabled = base.Permission.Bash.Enabled
 	}
 
+	merged.Permission.Bash.Allow.RemoveCommands = unionStrings(
+		base.Permission.Bash.Allow.RemoveCommands, overlay.Permission.Bash.Allow.RemoveCommands)
 	merged.Permission.Bash.ExcludeEntries = unionStrings(
 		base.Permission.Bash.ExcludeEntries, overlay.Permission.Bash.ExcludeEntries)
 	merged.Permission.Bash.ExcludeCommands = unionStrings(
@@ -182,6 +201,8 @@ func MergeConfig(base *Config, project rawConfig, projectRoot string) *Config {
 		merged.Permission.Bash.Enabled = base.Permission.Bash.Enabled
 	}
 
+	merged.Permission.Bash.Allow.RemoveCommands = unionStrings(
+		base.Permission.Bash.Allow.RemoveCommands, project.Permission.Bash.Allow.RemoveCommands)
 	merged.Permission.Bash.ExcludeEntries = unionStrings(
 		base.Permission.Bash.ExcludeEntries, project.Permission.Bash.ExcludeEntries)
 	merged.Permission.Bash.ExcludeCommands = unionStrings(

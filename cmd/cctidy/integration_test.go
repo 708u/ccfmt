@@ -1759,6 +1759,208 @@ exclude_paths = ["vendor/"]
 	})
 }
 
+func TestIntegrationBashRemoveCommands(t *testing.T) {
+	t.Parallel()
+
+	t.Run("remove_commands sweeps allow but keeps ask", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		projectDir := filepath.Join(dir, "project")
+		claudeDir := filepath.Join(projectDir, ".claude")
+		os.MkdirAll(claudeDir, 0o755)
+
+		alivePath := filepath.Join(dir, "alive-repo")
+		os.Mkdir(alivePath, 0o755)
+		deadPath := filepath.Join(dir, "dead-repo")
+
+		configDir := filepath.Join(dir, "config")
+		os.MkdirAll(configDir, 0o755)
+		configFile := filepath.Join(configDir, "config.toml")
+		os.WriteFile(configFile, []byte(`
+[permission.bash]
+enabled = true
+
+[permission.bash.allow]
+remove_commands = ["npm", "pip"]
+`), 0o644)
+
+		input := `{
+  "permissions": {
+    "allow": [
+      "Bash(npm install foo)",
+      "Bash(pip install requests)",
+      "Bash(git -C ` + deadPath + ` status)",
+      "Bash(git -C ` + alivePath + ` status)",
+      "Bash(npm run *)"
+    ],
+    "ask": [
+      "Bash(npm run build)",
+      "Bash(pip install flask)",
+      "Bash(git -C ` + deadPath + ` pull)"
+    ]
+  }
+}`
+		file := filepath.Join(claudeDir, "settings.json")
+		os.WriteFile(file, []byte(input), 0o644)
+
+		cfg, err := cctidy.LoadConfig(configFile)
+		if err != nil {
+			t.Fatalf("loading config: %v", err)
+		}
+
+		var buf bytes.Buffer
+		cli := &CLI{
+			Target:      file,
+			Verbose:     true,
+			homeDir:     dir,
+			checker:     &osPathChecker{},
+			cfg:         cfg,
+			projectRoot: projectDir,
+			w:           &buf,
+		}
+		if err := cli.Run(t.Context()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		data, _ := os.ReadFile(file)
+		got := string(data)
+
+		// allow: npm install swept (remove_commands)
+		if strings.Contains(got, `"Bash(npm install foo)"`) {
+			t.Error("allow npm install should be swept by remove_commands")
+		}
+		// allow: pip install swept (remove_commands)
+		if strings.Contains(got, `"Bash(pip install requests)"`) {
+			t.Error("allow pip install should be swept by remove_commands")
+		}
+		// allow: npm run * swept (remove_commands, first token is npm)
+		if strings.Contains(got, `"Bash(npm run *)"`) {
+			t.Error("allow npm run should be swept by remove_commands")
+		}
+		// allow: git dead swept (dead paths)
+		if strings.Contains(got, `"Bash(git -C `+deadPath) {
+			t.Error("allow git with dead path should be swept")
+		}
+		// allow: git alive kept (alive path)
+		if !strings.Contains(got, `"Bash(git -C `+alivePath) {
+			t.Error("allow git with alive path should be kept")
+		}
+		// ask: npm kept (AllowOnly)
+		if !strings.Contains(got, `"Bash(npm run build)"`) {
+			t.Error("ask npm should be kept (remove_commands is allow-only)")
+		}
+		// ask: pip kept (AllowOnly)
+		if !strings.Contains(got, `"Bash(pip install flask)"`) {
+			t.Error("ask pip should be kept (remove_commands is allow-only)")
+		}
+		// ask: git dead swept (dead paths, not AllowOnly)
+		if strings.Contains(got, `"Bash(git -C `+deadPath+` pull)"`) {
+			t.Error("ask git with dead path should be swept")
+		}
+	})
+
+	t.Run("remove_commands wins over exclude_commands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		configDir := filepath.Join(dir, "config")
+		os.MkdirAll(configDir, 0o755)
+		configFile := filepath.Join(configDir, "config.toml")
+		os.WriteFile(configFile, []byte(`
+[permission.bash]
+enabled = true
+exclude_commands = ["npm"]
+
+[permission.bash.allow]
+remove_commands = ["npm"]
+`), 0o644)
+
+		input := `{
+  "permissions": {
+    "allow": [
+      "Bash(npm install foo)"
+    ]
+  }
+}`
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(input), 0o644)
+
+		cfg, err := cctidy.LoadConfig(configFile)
+		if err != nil {
+			t.Fatalf("loading config: %v", err)
+		}
+
+		var buf bytes.Buffer
+		cli := &CLI{
+			Target:  file,
+			Verbose: true,
+			homeDir: dir,
+			checker: &osPathChecker{},
+			cfg:     cfg,
+			w:       &buf,
+		}
+		if err := cli.Run(t.Context()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		data, _ := os.ReadFile(file)
+		got := string(data)
+
+		if strings.Contains(got, `"Bash(npm install foo)"`) {
+			t.Error("remove_commands should win over exclude_commands")
+		}
+	})
+
+	t.Run("remove_commands inactive when bash sweep disabled", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		configDir := filepath.Join(dir, "config")
+		os.MkdirAll(configDir, 0o755)
+		configFile := filepath.Join(configDir, "config.toml")
+		os.WriteFile(configFile, []byte(`
+[permission.bash.allow]
+remove_commands = ["npm"]
+`), 0o644)
+
+		input := `{
+  "permissions": {
+    "allow": [
+      "Bash(npm install foo)"
+    ]
+  }
+}`
+		file := filepath.Join(dir, "settings.json")
+		os.WriteFile(file, []byte(input), 0o644)
+
+		cfg, err := cctidy.LoadConfig(configFile)
+		if err != nil {
+			t.Fatalf("loading config: %v", err)
+		}
+
+		var buf bytes.Buffer
+		// Neither --unsafe nor enabled=true
+		cli := &CLI{
+			Target:  file,
+			Verbose: true,
+			homeDir: dir,
+			checker: &osPathChecker{},
+			cfg:     cfg,
+			w:       &buf,
+		}
+		if err := cli.Run(t.Context()); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		data, _ := os.ReadFile(file)
+		got := string(data)
+
+		if !strings.Contains(got, `"Bash(npm install foo)"`) {
+			t.Error("remove_commands should have no effect when bash sweep is disabled")
+		}
+	})
+}
+
 func TestIntegrationBashSafeTierViaConfig(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
